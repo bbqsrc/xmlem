@@ -1,10 +1,11 @@
-use std::{borrow::Cow, cell::RefCell, collections::{BTreeMap, BTreeSet}, fmt::{Display, LowerHex}, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
 
 use url::Url;
 
+#[derive(Debug, Clone)]
 pub struct Root {
     main_namespace: Option<Url>,
-    namespaces: BTreeSet<Rc<Namespace>>,
+    namespaces: BTreeMap<String, Rc<RefCell<Namespace>>>,
     element: Rc<RefCell<Element>>,
 }
 
@@ -18,7 +19,8 @@ impl Display for Root {
             f.write_fmt(format_args!(" xmlns=\"{}\"", xmlns))?;
         }
 
-        for ns in &self.namespaces {
+        for ns in self.namespaces.values() {
+            let ns = ns.borrow();
             f.write_fmt(format_args!(" xmlns:{}=\"{}\"", ns.short_name, ns.url))?;
         }
 
@@ -36,7 +38,6 @@ impl Display for Root {
         f.write_fmt(format_args!(">"))?;
 
         for child in children.iter() {
-            let child = RefCell::borrow(child);
             Display::fmt(&*child, f)?;
         }
 
@@ -50,7 +51,10 @@ impl Root {
 
         let element = Element {
             attributes: Default::default(),
-            name: QName::new(name),
+            name: QName {
+                namespace: None,
+                name,
+            },
             children: Default::default(),
         };
 
@@ -65,15 +69,121 @@ impl Root {
         self.main_namespace = Some(url);
     }
 
-    pub fn add_namespace(&mut self, url: Url, short_name: impl Into<String>) -> Rc<Namespace> {
-        let ns = Rc::new(Namespace {
+    pub fn add_namespace(
+        &mut self,
+        url: Url,
+        short_name: impl Into<String>,
+    ) -> Rc<RefCell<Namespace>> {
+        let short_name = short_name.into();
+        let ns = Rc::new(RefCell::new(Namespace {
             url,
-            short_name: short_name.into(),
-        });
+            short_name: short_name.clone(),
+        }));
 
-        self.namespaces.insert(ns.clone());
+        self.namespaces.insert(short_name, ns.clone());
 
         ns
+    }
+
+    pub fn set_ns_short_name(&mut self, old_name: &str, new_name: &str) {
+        let namespace = self.namespaces.remove(old_name).unwrap();
+        namespace.borrow_mut().short_name = new_name.to_string();
+        self.namespaces.insert(new_name.to_string(), namespace);
+    }
+
+    pub fn element(&self, name: impl Into<String>) -> Rc<RefCell<Element>> {
+        Element::new(QName::new(&self, name))
+    }
+
+    pub fn from_str(s: &str) -> Root {
+        use quick_xml::events::Event;
+        use quick_xml::Reader;
+
+        let mut r = Reader::from_str(s);
+        let mut buf = Vec::new();
+
+        let root = loop {
+            match r.read_event(&mut buf) {
+                Ok(Event::Start(e)) => {
+                    let name = std::str::from_utf8(e.name()).unwrap();
+                    let mut root = Root::new(name);
+                    {
+                        for attr in e.attributes().filter_map(Result::ok) {
+                            let value = attr.unescape_and_decode_value(&r).unwrap();
+                            let s = std::str::from_utf8(attr.key).unwrap();
+
+                            if s == "xmlns" {
+                                let url = Url::parse(&value).unwrap();
+                                root.set_main_namespace(url);
+                                continue;
+                            }
+
+                            if s.starts_with("xmlns:") {
+                                let url = Url::parse(&value).unwrap();
+                                root.add_namespace(url, s.split_once(":").unwrap().1);
+                                continue;
+                            }
+
+                            let key: QName = QName::new(&root, s);
+                            let el = root.element.borrow();
+                            el.add_attr(key, value);
+                        }
+                    }
+                    break root;
+                }
+                Ok(Event::Text(e)) if e.len() == 0 => {
+                    continue;
+                }
+                x => panic!("Not a root? {:?}", x),
+            }
+        };
+
+        let mut element_stack = vec![root.element.clone()];
+
+        loop {
+            match r.read_event(&mut buf) {
+                Ok(Event::Start(e)) => {
+                    let name = std::str::from_utf8(e.name()).unwrap();
+                    let element = root.element(name);
+                    {
+                        let el = element.borrow();
+                        for attr in e.attributes().filter_map(Result::ok) {
+                            let key: QName =
+                                QName::new(&root, std::str::from_utf8(attr.key).unwrap());
+                            let value = attr.unescape_and_decode_value(&r).unwrap();
+                            el.add_attr(key, value);
+                        }
+                    }
+                    element_stack
+                        .last()
+                        .unwrap()
+                        .borrow()
+                        .add_child(element.clone());
+                    element_stack.push(element);
+                }
+                Ok(Event::Empty(e)) => {
+                    let name = std::str::from_utf8(e.name()).unwrap();
+                    let element = root.element(name);
+                    element_stack
+                        .last()
+                        .unwrap()
+                        .borrow()
+                        .add_child(element.clone());
+                }
+                Ok(Event::End(_)) => {
+                    element_stack.pop();
+                }
+                Ok(Event::Text(e)) => {
+                    let el = element_stack.last().unwrap().borrow();
+                    el.add_text(Rc::new(RefCell::new(e.unescape_and_decode(&r).unwrap())));
+                }
+                Ok(Event::Eof) => break, // exits the loop when reaching end of file
+                Err(e) => panic!("Error at position {}: {:?}", r.buffer_position(), e),
+                _ => (), // There are several other `Event`s we do not consider here
+            }
+        }
+
+        root
     }
 }
 
@@ -90,7 +200,12 @@ impl Element {
 
     pub fn add_child(&self, child: Rc<RefCell<Element>>) {
         let mut children = RefCell::borrow_mut(&self.children);
-        children.push(child);
+        children.push(child.into());
+    }
+
+    pub fn add_text(&self, text: Rc<RefCell<String>>) {
+        let mut children = RefCell::borrow_mut(&self.children);
+        children.push(Node::Text(text));
     }
 
     pub fn add_attr(&self, key: QName, value: impl Into<String>) {
@@ -101,7 +216,7 @@ impl Element {
 
 impl Display for QName {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        match self.namespace.as_ref().map(|x| &**x) {
+        match self.namespace.as_ref().map(|x| &**x).map(RefCell::borrow) {
             Some(ns) => f.write_fmt(format_args!("{}:{}", ns.short_name, self.name)),
             None => f.write_str(&self.name),
         }
@@ -152,7 +267,6 @@ impl Display for Element {
         f.write_fmt(format_args!(">"))?;
 
         for child in children.iter() {
-            let child = RefCell::borrow(child);
             Display::fmt(&*child, f)?;
         }
 
@@ -166,9 +280,9 @@ pub struct Namespace {
     short_name: String,
 }
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QName {
-    namespace: Option<Rc<Namespace>>,
+    namespace: Option<Rc<RefCell<Namespace>>>,
     name: String,
 }
 
@@ -224,10 +338,26 @@ fn is_valid_qname(input: &str) -> bool {
 }
 
 impl QName {
-    pub fn new(name: impl Into<String>) -> Self {
+    pub fn new(root: &Root, name: impl Into<String>) -> Self {
         let name = name.into();
+
         if !is_valid_qname(&name) {
             panic!("Invalid qname");
+        }
+
+        match name.split_once(":") {
+            Some((a, b)) => match root.namespaces.get(a) {
+                Some(ns) => {
+                    return Self {
+                        namespace: Some(ns.clone()),
+                        name: b.to_string(),
+                    }
+                }
+                None => {
+                    panic!("No namespace found oh no: {}", a);
+                }
+            },
+            None => {}
         }
 
         Self {
@@ -236,7 +366,7 @@ impl QName {
         }
     }
 
-    pub fn with_namespace(ns: Rc<Namespace>, name: impl Into<String>) -> Self {
+    pub fn with_namespace(ns: Rc<RefCell<Namespace>>, name: impl Into<String>) -> Self {
         let name = name.into();
         if !is_valid_qname(&name) {
             panic!("Invalid qname");
@@ -249,25 +379,37 @@ impl QName {
     }
 }
 
+#[derive(Debug, Clone)]
 pub struct Element {
     name: QName,
     attributes: Rc<RefCell<BTreeMap<QName, String>>>,
-    children: Rc<RefCell<Vec<Rc<RefCell<Element>>>>>,
+    children: Rc<RefCell<Vec<Node>>>,
 }
 
-impl TryFrom<String> for QName {
-    type Error = ();
+#[derive(Debug, Clone)]
+pub enum Node {
+    Element(Rc<RefCell<Element>>),
+    Text(Rc<RefCell<String>>),
+}
 
-    fn try_from(value: String) -> Result<Self, Self::Error> {
-        Ok(QName::new(value))
+impl From<Rc<RefCell<Element>>> for Node {
+    fn from(x: Rc<RefCell<Element>>) -> Self {
+        Self::Element(x)
     }
 }
 
-impl TryFrom<&str> for QName {
-    type Error = ();
+impl From<Rc<RefCell<String>>> for Node {
+    fn from(x: Rc<RefCell<String>>) -> Self {
+        Self::Text(x)
+    }
+}
 
-    fn try_from(value: &str) -> Result<Self, Self::Error> {
-        Ok(QName::new(value))
+impl Display for Node {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Node::Element(x) => Display::fmt(&RefCell::borrow(x), f),
+            Node::Text(x) => Display::fmt(&RefCell::borrow(x), f),
+        }
     }
 }
 
@@ -277,10 +419,10 @@ fn smoke() {
     root.set_main_namespace(Url::parse("http://wat.lol").unwrap());
     let mlem_ns = root.add_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
 
-    let test = Element::new("test".try_into().unwrap());
+    let test = root.element("test");
     {
         let test_ref = test.borrow();
-        test_ref.add_child(Element::new("mlem".try_into().unwrap()));
+        test_ref.add_child(root.element("mlem"));
 
         let e = Element::new(QName::with_namespace(mlem_ns.clone(), "AHHHHHH"));
         {
@@ -295,9 +437,18 @@ fn smoke() {
         }
 
         test_ref.add_child(e);
-        test_ref.add_child(Element::new("mlem".try_into().unwrap()));
+        test_ref.add_child(root.element("mlem"));
     }
 
     root.element.borrow().add_child(test);
+    println!("{}", root);
+}
+
+#[test]
+fn smoke2() {
+    let mut root = Root::from_str(
+        r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
+    );
+    root.set_ns_short_name("x", "huehuehue");
     println!("{}", root);
 }

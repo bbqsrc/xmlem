@@ -7,4 +7,5 @@ edition = "2021"
 
 [dependencies]
 indexmap = "1.7.0"
+quick-xml = "0.22.0"
 url = "2.2.2"
