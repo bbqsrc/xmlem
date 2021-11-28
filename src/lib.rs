@@ -1,4 +1,4 @@
-use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, fmt::Display, rc::Rc};
+use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, fmt::Display, ops::Deref, rc::Rc};
 
 use url::Url;
 
@@ -7,6 +7,14 @@ pub struct Root {
     main_namespace: Option<Url>,
     namespaces: BTreeMap<String, Rc<RefCell<Namespace>>>,
     element: Rc<RefCell<Element>>,
+}
+
+impl Deref for Root {
+    type Target = RefCell<Element>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.element
+    }
 }
 
 impl Display for Root {
@@ -450,5 +458,13 @@ fn smoke2() {
         r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
     );
     root.set_ns_short_name("x", "huehuehue");
+    println!("{}", root);
+}
+
+#[test]
+fn smoke3() {
+    let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
+    let root = Root::from_str(input);
+
     println!("{}", root);
 }
