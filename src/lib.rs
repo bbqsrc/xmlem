@@ -85,6 +85,12 @@ impl Element {
                 Ok(Event::Text(e)) if e.len() == 0 => {
                     continue;
                 }
+                Ok(Event::Text(e)) if e.unescape_and_decode(&r).map(|x| x.trim().len() == 0).unwrap_or(false) => {
+                    continue;
+                }
+                Ok(Event::Decl(_) | Event::DocType(_)) => {
+                    continue;   
+                }
                 x => panic!("Not a root? {:?}", x),
             }
         };
@@ -114,12 +120,15 @@ impl Element {
                     let parent = element_stack.last().unwrap();
                     Element::new_child(&parent, name).unwrap();
                 }
-                Ok(Event::End(_)) => {
+                Ok(Event::End(e)) => {
                     element_stack.pop();
                 }
                 Ok(Event::Text(e)) => {
-                    let el = element_stack.last().unwrap().borrow();
-                    el.add_text(Rc::new(RefCell::new(e.unescape_and_decode(&r)?)));
+                    let text = e.unescape_and_decode(&r)?;
+                    if text.trim().len() > 0 {
+                        let el = element_stack.last().unwrap().borrow();
+                        el.add_text(Rc::new(RefCell::new(text)));
+                    }
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(e) => panic!("Error at position {}: {:?}", r.buffer_position(), e),
