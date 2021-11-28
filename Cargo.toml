@@ -8,4 +8,5 @@ license = "Apache-2.0 OR MIT"
 [dependencies]
 indexmap = "1.7.0"
 quick-xml = "0.22.0"
+thiserror = "1.0.30"
 url = "2.2.2"

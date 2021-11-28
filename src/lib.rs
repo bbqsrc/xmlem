@@ -1,33 +1,24 @@
-use std::{borrow::Cow, cell::RefCell, collections::BTreeMap, fmt::Display, ops::Deref, rc::Rc};
+use std::{
+    borrow::Cow,
+    cell::RefCell,
+    collections::BTreeMap,
+    fmt::Display,
+    rc::{Rc, Weak},
+};
 
 use url::Url;
 
-#[derive(Debug, Clone)]
-pub struct Root {
-    main_namespace: Option<Url>,
-    namespaces: BTreeMap<String, Rc<RefCell<Namespace>>>,
-    element: Rc<RefCell<Element>>,
-}
-
-impl Deref for Root {
-    type Target = RefCell<Element>;
-
-    fn deref(&self) -> &Self::Target {
-        &self.element
-    }
-}
-
-impl Display for Root {
+impl Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let element = self.element.borrow();
+        let element = self;
 
         f.write_fmt(format_args!("<{}", element.name))?;
 
-        if let Some(xmlns) = self.main_namespace.as_ref() {
+        if let Some(xmlns) = self.local_main_namespace.borrow().as_ref() {
             f.write_fmt(format_args!(" xmlns=\"{}\"", xmlns))?;
         }
 
-        for ns in self.namespaces.values() {
+        for ns in self.local_namespaces.borrow().values() {
             let ns = ns.borrow();
             f.write_fmt(format_args!(" xmlns:{}=\"{}\"", ns.short_name, ns.url))?;
         }
@@ -53,57 +44,8 @@ impl Display for Root {
     }
 }
 
-impl Root {
-    pub fn new(name: impl Into<String>) -> Root {
-        let name = name.into();
-
-        let element = Element {
-            attributes: Default::default(),
-            name: QName {
-                namespace: None,
-                name,
-            },
-            children: Default::default(),
-        };
-
-        Self {
-            main_namespace: Default::default(),
-            namespaces: Default::default(),
-            element: Rc::new(RefCell::new(element)),
-        }
-    }
-
-    pub fn set_main_namespace(&mut self, url: Url) {
-        self.main_namespace = Some(url);
-    }
-
-    pub fn add_namespace(
-        &mut self,
-        url: Url,
-        short_name: impl Into<String>,
-    ) -> Rc<RefCell<Namespace>> {
-        let short_name = short_name.into();
-        let ns = Rc::new(RefCell::new(Namespace {
-            url,
-            short_name: short_name.clone(),
-        }));
-
-        self.namespaces.insert(short_name, ns.clone());
-
-        ns
-    }
-
-    pub fn set_ns_short_name(&mut self, old_name: &str, new_name: &str) {
-        let namespace = self.namespaces.remove(old_name).unwrap();
-        namespace.borrow_mut().short_name = new_name.to_string();
-        self.namespaces.insert(new_name.to_string(), namespace);
-    }
-
-    pub fn element(&self, name: impl Into<String>) -> Rc<RefCell<Element>> {
-        Element::new(QName::new(&self, name))
-    }
-
-    pub fn from_str(s: &str) -> Root {
+impl Element {
+    pub fn from_str(s: &str) -> Result<Rc<RefCell<Element>>, quick_xml::Error> {
         use quick_xml::events::Event;
         use quick_xml::Reader;
 
@@ -113,28 +55,29 @@ impl Root {
         let root = loop {
             match r.read_event(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    let name = std::str::from_utf8(e.name()).unwrap();
-                    let mut root = Root::new(name);
+                    let name = std::str::from_utf8(e.name()).unwrap().to_string();
+                    let root = Element::root(name).unwrap();
                     {
+                        let root = root.borrow();
+
                         for attr in e.attributes().filter_map(Result::ok) {
                             let value = attr.unescape_and_decode_value(&r).unwrap();
-                            let s = std::str::from_utf8(attr.key).unwrap();
+                            let s = std::str::from_utf8(attr.key)?;
 
                             if s == "xmlns" {
                                 let url = Url::parse(&value).unwrap();
-                                root.set_main_namespace(url);
+                                root.set_local_main_namespace(Some(url));
                                 continue;
                             }
 
                             if s.starts_with("xmlns:") {
                                 let url = Url::parse(&value).unwrap();
-                                root.add_namespace(url, s.split_once(":").unwrap().1);
+                                root.add_local_namespace(url, s.split_once(":").unwrap().1);
                                 continue;
                             }
 
-                            let key: QName = QName::new(&root, s);
-                            let el = root.element.borrow();
-                            el.add_attr(key, value);
+                            let key: QName = QName::new(&root, s).unwrap();
+                            root.add_attr(key, value);
                         }
                     }
                     break root;
@@ -146,44 +89,37 @@ impl Root {
             }
         };
 
-        let mut element_stack = vec![root.element.clone()];
+        let mut element_stack = vec![root.clone()];
 
         loop {
             match r.read_event(&mut buf) {
                 Ok(Event::Start(e)) => {
                     let name = std::str::from_utf8(e.name()).unwrap();
-                    let element = root.element(name);
+                    let parent = element_stack.last().unwrap();
+                    let element = Element::new_child(parent, name).unwrap();
                     {
                         let el = element.borrow();
                         for attr in e.attributes().filter_map(Result::ok) {
+                            let root = root.borrow();
                             let key: QName =
-                                QName::new(&root, std::str::from_utf8(attr.key).unwrap());
-                            let value = attr.unescape_and_decode_value(&r).unwrap();
+                                QName::new(&root, std::str::from_utf8(attr.key).unwrap()).unwrap();
+                            let value = attr.unescape_and_decode_value(&r)?;
                             el.add_attr(key, value);
                         }
                     }
-                    element_stack
-                        .last()
-                        .unwrap()
-                        .borrow()
-                        .add_child(element.clone());
                     element_stack.push(element);
                 }
                 Ok(Event::Empty(e)) => {
                     let name = std::str::from_utf8(e.name()).unwrap();
-                    let element = root.element(name);
-                    element_stack
-                        .last()
-                        .unwrap()
-                        .borrow()
-                        .add_child(element.clone());
+                    let parent = element_stack.last().unwrap();
+                    Element::new_child(&parent, name).unwrap();
                 }
                 Ok(Event::End(_)) => {
                     element_stack.pop();
                 }
                 Ok(Event::Text(e)) => {
                     let el = element_stack.last().unwrap().borrow();
-                    el.add_text(Rc::new(RefCell::new(e.unescape_and_decode(&r).unwrap())));
+                    el.add_text(Rc::new(RefCell::new(e.unescape_and_decode(&r)?)));
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(e) => panic!("Error at position {}: {:?}", r.buffer_position(), e),
@@ -191,22 +127,127 @@ impl Root {
             }
         }
 
-        root
+        Ok(root)
     }
 }
 
 impl Element {
-    pub fn new(name: QName) -> Rc<RefCell<Element>> {
+    pub fn root(name: impl Into<String>) -> Result<Rc<RefCell<Element>>, Error> {
+        let name = name.into();
+
+        if !is_valid_qname(&name) {
+            return Err(Error::InvalidQName(name));
+        }
+
+        Ok(Self::new(
+            QName {
+                namespace: None,
+                name,
+            },
+            None,
+        ))
+    }
+
+    fn new(name: QName, parent: Option<Rc<RefCell<Element>>>) -> Rc<RefCell<Element>> {
         let name = name.into();
 
         Rc::new(RefCell::new(Element {
             attributes: Default::default(),
             name,
             children: Default::default(),
+            parent: parent.map(|x| Rc::downgrade(&x)),
+            local_main_namespace: Default::default(),
+            local_namespaces: Default::default(),
         }))
     }
 
-    pub fn add_child(&self, child: Rc<RefCell<Element>>) {
+    pub fn set_local_main_namespace(&self, url: Option<Url>) {
+        *self.local_main_namespace.borrow_mut() = url;
+    }
+
+    pub fn add_local_namespace(
+        &self,
+        url: Url,
+        short_name: impl Into<String>,
+    ) -> Rc<RefCell<Namespace>> {
+        let short_name = short_name.into();
+        let ns = Rc::new(RefCell::new(Namespace {
+            url,
+            short_name: short_name.clone(),
+        }));
+
+        self.local_namespaces
+            .borrow_mut()
+            .insert(short_name, ns.clone());
+
+        ns
+    }
+
+    pub fn set_local_ns_short_name(&self, old_name: &str, new_name: &str) {
+        let mut ns = self.local_namespaces.borrow_mut();
+        let namespace = ns.remove(old_name).unwrap();
+        namespace.borrow_mut().short_name = new_name.to_string();
+        ns.insert(new_name.to_string(), namespace);
+    }
+
+    /// Get all parent elements
+    pub fn ancestors(&self) -> impl Iterator<Item = Rc<RefCell<Element>>> {
+        let mut parent = self.parent.clone();
+        std::iter::from_fn(move || {
+            let cur = parent.clone();
+            if let Some(cur) = cur.and_then(|x| x.upgrade()) {
+                parent = cur.borrow().parent.clone();
+                Some(cur)
+            } else {
+                None
+            }
+        })
+    }
+
+    pub fn namespaces(&self) -> BTreeMap<String, Rc<RefCell<Namespace>>> {
+        let mut ns = BTreeMap::new();
+
+        let mut parents = self.ancestors().collect::<Vec<_>>();
+        parents.reverse();
+
+        for parent in parents {
+            let element = parent.borrow();
+
+            for (k, v) in element.local_namespaces.borrow().iter() {
+                ns.insert(k.to_string(), v.clone());
+            }
+        }
+
+        for (k, v) in self.local_namespaces.borrow().iter() {
+            ns.insert(k.to_string(), v.clone());
+        }
+
+        ns
+    }
+
+    pub fn new_child(
+        this: &Rc<RefCell<Element>>,
+        name: impl Into<String>,
+    ) -> Result<Rc<RefCell<Element>>, Error> {
+        let parent = Some(this.clone());
+        let el = this.borrow();
+        let element = Element::new(QName::new(&el, name)?, parent);
+        el.add_child(element.clone());
+        Ok(element)
+    }
+
+    pub fn new_child_ns(
+        this: &Rc<RefCell<Element>>,
+        qname: QName,
+    ) -> Result<Rc<RefCell<Element>>, Error> {
+        let parent = Some(this.clone());
+        let el = this.borrow();
+        let element = Element::new(qname, parent);
+        el.add_child(element.clone());
+        Ok(element)
+    }
+
+    fn add_child(&self, child: Rc<RefCell<Element>>) {
         let mut children = RefCell::borrow_mut(&self.children);
         children.push(child.into());
     }
@@ -254,31 +295,6 @@ fn process_entities(input: &str) -> Cow<'_, str> {
         Cow::Owned(s)
     } else {
         Cow::Borrowed(input)
-    }
-}
-
-impl Display for Element {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("<{}", self.name))?;
-
-        let attributes = RefCell::borrow(&self.attributes);
-        for (key, value) in attributes.iter() {
-            f.write_fmt(format_args!(" {}=\"{}\"", key, process_entities(value)))?;
-        }
-
-        let children = RefCell::borrow(&*self.children);
-
-        if children.is_empty() {
-            return f.write_str("/>");
-        }
-
-        f.write_fmt(format_args!(">"))?;
-
-        for child in children.iter() {
-            Display::fmt(&*child, f)?;
-        }
-
-        f.write_fmt(format_args!("</{}>", self.name))
     }
 }
 
@@ -345,33 +361,39 @@ fn is_valid_qname(input: &str) -> bool {
     chars.all(is_name_char)
 }
 
+#[derive(Debug, thiserror::Error)]
+pub enum Error {
+    #[error("Invalid QName: {0}")]
+    InvalidQName(String),
+}
+
 impl QName {
-    pub fn new(root: &Root, name: impl Into<String>) -> Self {
+    pub fn new(element: &Element, name: impl Into<String>) -> Result<Self, Error> {
         let name = name.into();
 
         if !is_valid_qname(&name) {
-            panic!("Invalid qname");
+            return Err(Error::InvalidQName(name));
         }
 
         match name.split_once(":") {
-            Some((a, b)) => match root.namespaces.get(a) {
+            Some((a, b)) => match element.namespaces().get(a) {
                 Some(ns) => {
-                    return Self {
+                    return Ok(Self {
                         namespace: Some(ns.clone()),
                         name: b.to_string(),
-                    }
+                    })
                 }
                 None => {
-                    panic!("No namespace found oh no: {}", a);
+                    return Err(Error::InvalidQName(name));
                 }
             },
             None => {}
         }
 
-        Self {
+        Ok(Self {
             namespace: None,
             name,
-        }
+        })
     }
 
     pub fn with_namespace(ns: Rc<RefCell<Namespace>>, name: impl Into<String>) -> Self {
@@ -390,8 +412,11 @@ impl QName {
 #[derive(Debug, Clone)]
 pub struct Element {
     name: QName,
+    local_main_namespace: RefCell<Option<Url>>,
+    local_namespaces: RefCell<BTreeMap<String, Rc<RefCell<Namespace>>>>,
     attributes: Rc<RefCell<BTreeMap<QName, String>>>,
     children: Rc<RefCell<Vec<Node>>>,
+    parent: Option<Weak<RefCell<Element>>>,
 }
 
 #[derive(Debug, Clone)]
@@ -423,16 +448,17 @@ impl Display for Node {
 
 #[test]
 fn smoke() {
-    let mut root = Root::new("root");
-    root.set_main_namespace(Url::parse("http://wat.lol").unwrap());
-    let mlem_ns = root.add_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
+    let root = Element::root("root").unwrap();
+    let root_el = root.borrow();
+    root_el.set_local_main_namespace(Some(Url::parse("http://wat.lol").unwrap()));
+    let mlem_ns = root_el.add_local_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
 
-    let test = root.element("test");
+    let test = Element::new_child(&root, "test").unwrap();
     {
-        let test_ref = test.borrow();
-        test_ref.add_child(root.element("mlem"));
+        Element::new_child(&test, "mlem").unwrap();
 
-        let e = Element::new(QName::with_namespace(mlem_ns.clone(), "AHHHHHH"));
+        let e = Element::new_child_ns(&test, QName::with_namespace(mlem_ns.clone(), "AHHHHHH"))
+            .unwrap();
         {
             let e_ref = e.borrow();
             let ns = mlem_ns.clone();
@@ -443,28 +469,25 @@ fn smoke() {
                 "<injection attack \0\0\0\0\0 \"'&'\"/>",
             )
         }
-
-        test_ref.add_child(e);
-        test_ref.add_child(root.element("mlem"));
+        Element::new_child(&test, "mlem2").unwrap();
     }
 
-    root.element.borrow().add_child(test);
-    println!("{}", root);
+    println!("{}", root.borrow());
 }
 
 #[test]
 fn smoke2() {
-    let mut root = Root::from_str(
+    let mut root = Element::from_str(
         r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
-    );
-    root.set_ns_short_name("x", "huehuehue");
-    println!("{}", root);
+    ).unwrap();
+    root.borrow().set_local_ns_short_name("x", "huehuehue");
+    println!("{}", root.borrow());
 }
 
 #[test]
 fn smoke3() {
     let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
-    let root = Root::from_str(input);
+    let root = Element::from_str(input).unwrap();
 
-    println!("{}", root);
+    println!("{}", root.borrow());
 }
