@@ -4,14 +4,14 @@ use url::Url;
 
 use crate::{element::Element, Error};
 
-#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct Namespace {
     // Fields used to be private
     pub url: Url,
     pub short_name: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
+#[derive(Debug, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QName {
     // Fields used to be private
     pub namespace: Option<Rc<RefCell<Namespace>>>,
@@ -57,6 +57,31 @@ impl QName {
             namespace: Some(ns),
             name,
         }
+    }
+}
+
+impl Clone for QName {
+    fn clone(&self) -> Self {
+        let namespace = match self.namespace.as_ref() {
+            Some(ref_namespace) => {
+                let hmm = &*ref_namespace.borrow();
+
+                let inner_clone = hmm.clone();
+                let cell = RefCell::new(inner_clone);
+                let rc = Rc::new(cell);
+                Some(rc)
+            },
+            None => None,
+        };
+
+        Self {
+            namespace,
+            name: self.name.clone(),
+        }
+    }
+
+    fn clone_from(&mut self, source: &Self) { 
+        *self = source.clone();
     }
 }
 

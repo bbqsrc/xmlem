@@ -256,14 +256,33 @@ impl Element {
 /*
 impl Clone for Element {
     fn clone(&self) -> Self {
-
+        let name = self.name.clone();
     }
+
+
 
     fn clone_from(&mut self, source: &Self) {
 
     }
-}
+}*/
+
+
+
+/*
+
+
+    name: QName,
+    local_main_namespace: RefCell<Option<Url>>,
+    local_namespaces: RefCell<BTreeMap<String, Rc<RefCell<Namespace>>>>,
+    attributes: Rc<RefCell<BTreeMap<QName, String>>>,
+    children: Rc<RefCell<Vec<Node>>>,
+    parent: Option<Weak<RefCell<Element>>>,
+
+
+
 */
+
+
 
 impl Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
