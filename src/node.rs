@@ -5,7 +5,7 @@ use crate::element::Element;
 #[derive(Debug)]
 pub enum Node {
     Element(Rc<RefCell<Element>>),
-    Text(Rc<RefCell<String>>),
+    Text(Rc<RefCell<String>>), // add parent lol
 }
 
 impl From<Rc<RefCell<Element>>> for Node {

@@ -137,9 +137,19 @@ impl Element {
         Ok(element)
     }
 
+    pub fn children(&self) -> Rc<RefCell<Vec<Node>>> {
+        self.children.clone()
+    }
+
     fn add_child(&self, child: Rc<RefCell<Element>>) {
         let mut children = RefCell::borrow_mut(&self.children);
         children.push(child.into());
+    }
+
+    pub fn set_parent(&mut self, parent: Rc<RefCell<Element>>) {
+        let weak_parent = Rc::downgrade(&parent);
+
+        self.parent = Some(weak_parent);
     }
 
     pub fn add_text(&self, text: Rc<RefCell<String>>) {
@@ -264,7 +274,8 @@ impl Clone for Element {
         for (key, value) in namespaces_borrow.iter() {
             let inner_namespace = &*value.borrow();
 
-            new_namespace_map.insert(key.clone(), Rc::new(RefCell::new(inner_namespace.clone())));
+            let x = inner_namespace.clone();
+            new_namespace_map.insert(key.clone(), Rc::new(RefCell::new(x)));
         }
 
         let attributes_borrow = &*self.attributes.borrow();
@@ -273,6 +284,7 @@ impl Clone for Element {
         let child_vec_borrow = &*self.children.borrow();
         let new_child_vec = child_vec_borrow.clone();
 
+        /*
         let parent = match &self.parent {
             Some(inner_parent) => match inner_parent.upgrade() {
                 Some(rc) => {
@@ -286,6 +298,7 @@ impl Clone for Element {
             },
             None => None,
         };
+        */
 
         Self {
             name,
@@ -293,7 +306,7 @@ impl Clone for Element {
             local_namespaces: RefCell::new(new_namespace_map),
             attributes: Rc::new(RefCell::new(new_attributes_map)),
             children: Rc::new(RefCell::new(new_child_vec)),
-            parent,
+            parent: None,
         }
     }
 

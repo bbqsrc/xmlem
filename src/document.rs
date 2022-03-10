@@ -2,6 +2,8 @@ use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::Element;
 
+use crate::node::Node;
+
 pub struct XmlemDocument {
     root: Rc<RefCell<Element>>,
 }
@@ -18,6 +20,12 @@ impl Clone for XmlemDocument {
     fn clone(&self) -> Self {
         let borrow_root = &*self.root.borrow();
 
+        let childrens = borrow_root.children();
+
+        for child in &mut *childrens.borrow_mut() {
+            parentify(child, self.root.clone())
+        }
+
         Self {
             root: Rc::new(RefCell::new(borrow_root.clone())),
         }
@@ -26,6 +34,28 @@ impl Clone for XmlemDocument {
     fn clone_from(&mut self, source: &Self) {
         *self = source.clone();
     }
+}
+
+fn parentify(child: &mut Node, parent: Rc<RefCell<Element>>) {
+    match child {
+        Node::Element(elem) => {
+            {
+                let borrowed_elem = &mut *elem.borrow_mut();
+                borrowed_elem.set_parent(parent);
+            }
+
+            let borrowed_elem = &*elem.borrow();
+
+            let childrens = borrowed_elem.children();
+
+            for child in &mut *childrens.borrow_mut() {
+                let repacked_elem = elem.clone();
+
+                parentify(child, repacked_elem);
+            }
+        },
+        Node::Text(_) => {}
+    };
 }
 
 impl Display for XmlemDocument {
