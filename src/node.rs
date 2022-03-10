@@ -42,7 +42,8 @@ impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Node::Element(x) => Display::fmt(&RefCell::borrow(x), f),
-            Node::Text(x) | Node::CData(x) => Display::fmt(&RefCell::borrow(x), f),
+            Node::Text(x) => Display::fmt(&RefCell::borrow(x), f),
+            Node::CData(x) => f.write_fmt(format_args!("<![CDATA[{}]]>", &*x.borrow())),
         }
     }
 }

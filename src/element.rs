@@ -157,6 +157,11 @@ impl Element {
         children.push(Node::Text(text));
     }
 
+    pub fn add_cdata(&self, text: Rc<RefCell<String>>) {
+        let mut children = RefCell::borrow_mut(&self.children);
+        children.push(Node::CData(text));
+    }
+
     pub fn add_attr(&self, key: QName, value: impl Into<String>) {
         let mut attrs = RefCell::borrow_mut(&self.attributes);
         attrs.insert(key, value.into());
@@ -256,6 +261,7 @@ impl Element {
                 Ok(Event::CData(cdata)) => {
                     let text = cdata.unescape_and_decode(&r)?;
                     let el = element_stack.last().unwrap().borrow();
+                    el.add_cdata(Rc::new(RefCell::new(text)));
                 }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(e) => panic!("Error at position {}: {:?}", r.buffer_position(), e),
