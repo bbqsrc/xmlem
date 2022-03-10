@@ -1,8 +1,9 @@
 use std::borrow::Cow;
 
-pub use element::Element;
+pub use document::XmlemDocument;
+use element::Element;
 
-pub mod doc;
+pub mod document;
 mod element;
 pub mod node;
 mod qname;
