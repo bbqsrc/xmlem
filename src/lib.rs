@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use element::Element;
+pub use element::Element;
 
 pub mod doc;
 mod element;
