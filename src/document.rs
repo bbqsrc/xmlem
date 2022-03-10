@@ -53,8 +53,9 @@ fn parentify(child: &mut Node, parent: Rc<RefCell<Element>>) {
 
                 parentify(child, repacked_elem);
             }
-        },
+        }
         Node::Text(_) => {}
+        Node::CData(_) => {}
     };
 }
 

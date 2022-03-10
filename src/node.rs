@@ -6,17 +6,12 @@ use crate::element::Element;
 pub enum Node {
     Element(Rc<RefCell<Element>>),
     Text(Rc<RefCell<String>>), // add parent lol
+    CData(Rc<RefCell<String>>),
 }
 
 impl From<Rc<RefCell<Element>>> for Node {
     fn from(x: Rc<RefCell<Element>>) -> Self {
         Self::Element(x)
-    }
-}
-
-impl From<Rc<RefCell<String>>> for Node {
-    fn from(x: Rc<RefCell<String>>) -> Self {
-        Self::Text(x)
     }
 }
 
@@ -31,6 +26,10 @@ impl Clone for Node {
                 let inner_string = &*rccell_string.borrow();
                 Node::Text(Rc::new(RefCell::new(inner_string.clone())))
             }
+            Node::CData(rccell_string) => {
+                let inner_string = &*rccell_string.borrow();
+                Node::CData(Rc::new(RefCell::new(inner_string.clone())))
+            }
         }
     }
 
@@ -43,7 +42,7 @@ impl Display for Node {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Node::Element(x) => Display::fmt(&RefCell::borrow(x), f),
-            Node::Text(x) => Display::fmt(&RefCell::borrow(x), f),
+            Node::Text(x) | Node::CData(x) => Display::fmt(&RefCell::borrow(x), f),
         }
     }
 }

@@ -42,16 +42,17 @@ fn process_entities(input: &str) -> Cow<'_, str> {
 
 #[cfg(test)]
 mod test {
-    use url::Url;
-    use super::qname::QName;
     use super::element::Element;
+    use super::qname::QName;
+    use url::Url;
 
     #[test]
     fn smoke() {
         let root = Element::root("root").unwrap();
         let root_el = root.borrow();
         root_el.set_local_main_namespace(Some(Url::parse("http://wat.lol").unwrap()));
-        let mlem_ns = root_el.add_local_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
+        let mlem_ns =
+            root_el.add_local_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
 
         let test = Element::new_child(&root, "test").unwrap();
         {

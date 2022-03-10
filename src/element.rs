@@ -253,6 +253,10 @@ impl Element {
                         el.add_text(Rc::new(RefCell::new(text)));
                     }
                 }
+                Ok(Event::CData(cdata)) => {
+                    let text = cdata.unescape_and_decode(&r)?;
+                    let el = element_stack.last().unwrap().borrow();
+                }
                 Ok(Event::Eof) => break, // exits the loop when reaching end of file
                 Err(e) => panic!("Error at position {}: {:?}", r.buffer_position(), e),
                 _ => (), // There are several other `Event`s we do not consider here
