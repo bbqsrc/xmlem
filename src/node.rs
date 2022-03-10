@@ -25,8 +25,7 @@ impl Clone for Node {
         match self {
             Node::Element(rccell_element) => {
                 let inner_element = &*rccell_element.borrow();
-                //Node::Element(Rc::new(RefCell::new(inner_element.clone()))
-                todo!()
+                Node::Element(Rc::new(RefCell::new(inner_element.clone())))
             }
             Node::Text(rccell_string) => {
                 let inner_string = &*rccell_string.borrow();

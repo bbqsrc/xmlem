@@ -233,7 +233,7 @@ impl Element {
                     let parent = element_stack.last().unwrap();
                     Element::new_child(&parent, name).unwrap();
                 }
-                Ok(Event::End(e)) => {
+                Ok(Event::End(_e)) => {
                     element_stack.pop();
                 }
                 Ok(Event::Text(e)) => {

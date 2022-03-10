@@ -14,14 +14,16 @@ impl XmlemDocument {
     }
 }
 
-/*
 impl Clone for XmlemDocument {
     fn clone(&self) -> Self {
+        let borrow_root = &*self.root.borrow();
 
+        Self {
+            root: Rc::new(RefCell::new(borrow_root.clone())),
+        }
     }
 
     fn clone_from(&mut self, source: &Self) {
-
+        *self = source.clone();
     }
 }
-*/
