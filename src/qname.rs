@@ -70,7 +70,7 @@ impl Clone for QName {
                 let cell = RefCell::new(inner_clone);
                 let rc = Rc::new(cell);
                 Some(rc)
-            },
+            }
             None => None,
         };
 
@@ -80,7 +80,7 @@ impl Clone for QName {
         }
     }
 
-    fn clone_from(&mut self, source: &Self) { 
+    fn clone_from(&mut self, source: &Self) {
         *self = source.clone();
     }
 }

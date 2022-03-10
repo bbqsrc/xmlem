@@ -253,36 +253,54 @@ impl Element {
     }
 }
 
-/*
 impl Clone for Element {
     fn clone(&self) -> Self {
         let name = self.name.clone();
+
+        let url_borrow = self.local_main_namespace.borrow();
+
+        let namespaces_borrow = self.local_namespaces.borrow();
+        let mut new_namespace_map = BTreeMap::new();
+        for (key, value) in namespaces_borrow.iter() {
+            let inner_namespace = &*value.borrow();
+
+            new_namespace_map.insert(key.clone(), Rc::new(RefCell::new(inner_namespace.clone())));
+        }
+
+        let attributes_borrow = &*self.attributes.borrow();
+        let new_attributes_map = attributes_borrow.clone();
+
+        let child_vec_borrow = &*self.children.borrow();
+        let new_child_vec = child_vec_borrow.clone();
+
+        let parent = match &self.parent {
+            Some(inner_parent) => match inner_parent.upgrade() {
+                Some(rc) => {
+                    let parent_element_borrow = &*rc.borrow();
+
+                    Some(Rc::downgrade(&Rc::new(RefCell::new(
+                        parent_element_borrow.clone(),
+                    ))))
+                }
+                None => None,
+            },
+            None => None,
+        };
+
+        Self {
+            name,
+            local_main_namespace: RefCell::new(url_borrow.clone()),
+            local_namespaces: RefCell::new(new_namespace_map),
+            attributes: Rc::new(RefCell::new(new_attributes_map)),
+            children: Rc::new(RefCell::new(new_child_vec)),
+            parent,
+        }
     }
-
-
 
     fn clone_from(&mut self, source: &Self) {
-
+        *self = source.clone();
     }
-}*/
-
-
-
-/*
-
-
-    name: QName,
-    local_main_namespace: RefCell<Option<Url>>,
-    local_namespaces: RefCell<BTreeMap<String, Rc<RefCell<Namespace>>>>,
-    attributes: Rc<RefCell<BTreeMap<QName, String>>>,
-    children: Rc<RefCell<Vec<Node>>>,
-    parent: Option<Weak<RefCell<Element>>>,
-
-
-
-*/
-
-
+}
 
 impl Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
