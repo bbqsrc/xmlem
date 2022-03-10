@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, fmt::Display, rc::Rc};
 
 use crate::Element;
 
@@ -25,5 +25,11 @@ impl Clone for XmlemDocument {
 
     fn clone_from(&mut self, source: &Self) {
         *self = source.clone();
+    }
+}
+
+impl Display for XmlemDocument {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_fmt(format_args!("{}", &*self.root.borrow()))
     }
 }
