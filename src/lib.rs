@@ -40,48 +40,55 @@ fn process_entities(input: &str) -> Cow<'_, str> {
     }
 }
 
-#[test]
-fn smoke() {
-    let root = Element::root("root").unwrap();
-    let root_el = root.borrow();
-    root_el.set_local_main_namespace(Some(Url::parse("http://wat.lol").unwrap()));
-    let mlem_ns = root_el.add_local_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
+#[cfg(test)]
+mod test {
+    use url::Url;
+    use super::qname::QName;
+    use super::element::Element;
 
-    let test = Element::new_child(&root, "test").unwrap();
-    {
-        Element::new_child(&test, "mlem").unwrap();
+    #[test]
+    fn smoke() {
+        let root = Element::root("root").unwrap();
+        let root_el = root.borrow();
+        root_el.set_local_main_namespace(Some(Url::parse("http://wat.lol").unwrap()));
+        let mlem_ns = root_el.add_local_namespace(Url::parse("http://test.url/lol/").unwrap(), "mlem");
 
-        let e = Element::new_child_ns(&test, QName::with_namespace(mlem_ns.clone(), "AHHHHHH"))
-            .unwrap();
+        let test = Element::new_child(&root, "test").unwrap();
         {
-            let e_ref = e.borrow();
-            let ns = mlem_ns.clone();
-            e_ref.add_attr(QName::with_namespace(ns.clone(), "test"), "amusement");
+            Element::new_child(&test, "mlem").unwrap();
 
-            e_ref.add_attr(
-                QName::with_namespace(ns, "smart"),
-                "<injection attack \0\0\0\0\0 \"'&'\"/>",
-            )
+            let e = Element::new_child_ns(&test, QName::with_namespace(mlem_ns.clone(), "AHHHHHH"))
+                .unwrap();
+            {
+                let e_ref = e.borrow();
+                let ns = mlem_ns.clone();
+                e_ref.add_attr(QName::with_namespace(ns.clone(), "test"), "amusement");
+
+                e_ref.add_attr(
+                    QName::with_namespace(ns, "smart"),
+                    "<injection attack \0\0\0\0\0 \"'&'\"/>",
+                )
+            }
+            Element::new_child(&test, "mlem2").unwrap();
         }
-        Element::new_child(&test, "mlem2").unwrap();
+
+        println!("{}", root.borrow());
     }
 
-    println!("{}", root.borrow());
-}
+    #[test]
+    fn smoke2() {
+        let mut root = Element::from_str(
+            r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
+        ).unwrap();
+        root.borrow().set_local_ns_short_name("x", "huehuehue");
+        println!("{}", root.borrow());
+    }
 
-#[test]
-fn smoke2() {
-    let mut root = Element::from_str(
-        r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
-    ).unwrap();
-    root.borrow().set_local_ns_short_name("x", "huehuehue");
-    println!("{}", root.borrow());
-}
+    #[test]
+    fn smoke3() {
+        let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
+        let root = Element::from_str(input).unwrap();
 
-#[test]
-fn smoke3() {
-    let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
-    let root = Element::from_str(input).unwrap();
-
-    println!("{}", root.borrow());
+        println!("{}", root.borrow());
+    }
 }
