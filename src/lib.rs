@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-pub use document::XmlemDocument;
+pub use document::Document;
 use element::Element;
 
 pub mod document;
