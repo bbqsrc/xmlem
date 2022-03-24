@@ -14,6 +14,12 @@ impl Document {
 
         Ok(Document { root })
     }
+
+    pub fn children(&self) -> Result<Rc<RefCell<Vec<Node>>>, quick_xml::Error> {
+        let borrow_root = &*self.root.borrow();
+
+        Ok(borrow_root.children())
+    }
 }
 
 impl Clone for Document {
@@ -61,6 +67,6 @@ fn parentify(child: &mut Node, parent: Rc<RefCell<Element>>) {
 
 impl Display for Document {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("{}", &*self.root.borrow()))
+        f.write_fmt(format_args!("\n{}", &*self.root.borrow()))
     }
 }
