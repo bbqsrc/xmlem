@@ -294,22 +294,6 @@ impl Clone for Element {
         let child_vec_borrow = &*self.children.borrow();
         let new_child_vec = child_vec_borrow.clone();
 
-        /*
-        let parent = match &self.parent {
-            Some(inner_parent) => match inner_parent.upgrade() {
-                Some(rc) => {
-                    let parent_element_borrow = &*rc.borrow();
-
-                    Some(Rc::downgrade(&Rc::new(RefCell::new(
-                        parent_element_borrow.clone(),
-                    ))))
-                }
-                None => None,
-            },
-            None => None,
-        };
-        */
-
         Self {
             name,
             local_main_namespace: RefCell::new(url_borrow.clone()),
