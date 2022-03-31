@@ -4,7 +4,7 @@ pub use document::Document;
 use element::Element;
 
 pub mod document;
-mod element;
+pub mod element;
 pub mod node;
 mod qname;
 

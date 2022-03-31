@@ -67,6 +67,6 @@ fn parentify(child: &mut Node, parent: Rc<RefCell<Element>>) {
 
 impl Display for Document {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_fmt(format_args!("\n{}", &*self.root.borrow()))
+        f.write_fmt(format_args!("{}", &*self.root.borrow()))
     }
 }
