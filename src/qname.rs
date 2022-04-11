@@ -52,7 +52,7 @@ impl QName {
         if !is_valid_qname(&name) {
             panic!("Invalid qname");
         }
-        
+
         Self {
             namespace: None,
             name,
