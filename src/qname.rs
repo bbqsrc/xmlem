@@ -47,6 +47,18 @@ impl QName {
         })
     }
 
+    pub fn without_namespace(name: impl Into<String>) -> Self {
+        let name = name.into();
+        if !is_valid_qname(&name) {
+            panic!("Invalid qname");
+        }
+        
+        Self {
+            namespace: None,
+            name,
+        }
+    }
+
     pub fn with_namespace(ns: Rc<RefCell<Namespace>>, name: impl Into<String>) -> Self {
         let name = name.into();
         if !is_valid_qname(&name) {
