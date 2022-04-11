@@ -340,15 +340,20 @@ impl Display for Element {
         }
 
         let children = RefCell::borrow(&*element.children);
-
+        
         if children.is_empty() {
             return f.write_str("/>");
         }
-
+        
         f.write_fmt(format_args!(">"))?;
 
         for child in children.iter() {
-            Display::fmt(&*child, f)?;
+            let child_lines = child.to_string();
+            let borrowed_child_lines = &child_lines;
+
+            for line in borrowed_child_lines.lines() {
+                f.write_fmt(format_args!("\n\t{}", line))?;
+            }
         }
 
         f.write_fmt(format_args!("</{}>", &element.name))
