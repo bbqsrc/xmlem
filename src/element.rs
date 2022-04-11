@@ -352,7 +352,7 @@ impl Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let element = self;
 
-        f.write_fmt(format_args!("\n<{}", element.name))?;
+        f.write_fmt(format_args!("<{}", element.name))?;
 
         if let Some(xmlns) = self.local_main_namespace.borrow().as_ref() {
             f.write_fmt(format_args!(" xmlns=\"{}\"", xmlns))?;
