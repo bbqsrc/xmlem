@@ -6,7 +6,7 @@ use element::Element;
 pub mod document;
 pub mod element;
 pub mod node;
-mod qname;
+pub mod qname;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
