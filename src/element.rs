@@ -385,6 +385,6 @@ impl Display for Element {
             }
         }
 
-        f.write_fmt(format_args!("</{}>", &element.name))
+        f.write_fmt(format_args!("\n</{}>", &element.name))
     }
 }
