@@ -246,7 +246,17 @@ impl Element {
                 Ok(Event::Empty(e)) => {
                     let name = std::str::from_utf8(e.name()).unwrap();
                     let parent = element_stack.last().unwrap();
-                    Element::new_child(&parent, name).unwrap();
+                    let element = Element::new_child(parent, name).unwrap();
+                    {
+                        let el = element.borrow();
+                        for attr in e.attributes().filter_map(Result::ok) {
+                            let root = root.borrow();
+                            let key: QName =
+                                QName::new(&root, std::str::from_utf8(attr.key).unwrap()).unwrap();
+                            let value = attr.unescape_and_decode_value(&r)?;
+                            el.add_attr(key, value);
+                        }
+                    }
                 }
                 Ok(Event::End(_e)) => {
                     element_stack.pop();
