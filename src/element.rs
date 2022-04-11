@@ -51,6 +51,10 @@ impl Element {
         }))
     }
 
+    pub fn name(&self) -> QName {
+        self.name.clone()
+    }
+
     pub fn set_local_main_namespace(&self, url: Option<Url>) {
         *self.local_main_namespace.borrow_mut() = url;
     }
@@ -113,6 +117,31 @@ impl Element {
         }
 
         ns
+    }
+
+    pub fn find_child_tag_with_name<'a>(&self, name: &str) -> Option<Rc<RefCell<Element>>> {
+
+        let cloned_children = self.children.clone();
+        let owned_children = &*cloned_children;
+        let children = RefCell::borrow(owned_children);
+
+        for child in children.iter() {
+            match child {
+                Node::Element(child) => {
+                    let cloned_child: Rc<RefCell<Element>> = child.clone();
+                    let other_cloned_child = child.clone();
+                    let owned_child = &*cloned_child;
+                    let borrowed_child = RefCell::borrow(owned_child);
+
+                    if borrowed_child.name().name == name {
+                        return Some(other_cloned_child);
+                    }
+                },
+                _ => continue
+            };
+        };
+
+        None
     }
 
     pub fn new_child(
@@ -340,7 +369,7 @@ impl Display for Element {
         }
 
         let children = RefCell::borrow(&*element.children);
-        
+
         if children.is_empty() {
             return f.write_str("/>");
         }

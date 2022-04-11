@@ -15,6 +15,10 @@ impl Document {
         Ok(Document { root })
     }
 
+    pub fn root(&self) -> Rc<RefCell<Element>> {
+        self.root.clone()
+    }
+
     pub fn children(&self) -> Result<Rc<RefCell<Vec<Node>>>, quick_xml::Error> {
         let borrow_root = &*self.root.borrow();
 
