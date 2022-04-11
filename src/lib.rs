@@ -15,7 +15,7 @@ pub enum Error {
 }
 
 fn process_entities(input: &str) -> Cow<'_, str> {
-    if input.contains(|c| ['<', '>', '\'', '"', '&'].contains(&c)) {
+    if input.contains(['<', '>', '\'', '"', '&']) {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
             s.push_str(match ch {
