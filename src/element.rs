@@ -120,7 +120,6 @@ impl Element {
     }
 
     pub fn find_child_tag_with_name<'a>(&self, name: &str) -> Option<Rc<RefCell<Element>>> {
-
         let cloned_children = self.children.clone();
         let owned_children = &*cloned_children;
         let children = RefCell::borrow(owned_children);
@@ -136,10 +135,10 @@ impl Element {
                     if borrowed_child.name().name == name {
                         return Some(other_cloned_child);
                     }
-                },
-                _ => continue
+                }
+                _ => continue,
             };
-        };
+        }
 
         None
     }
@@ -373,7 +372,7 @@ impl Display for Element {
         if children.is_empty() {
             return f.write_str("/>");
         }
-        
+
         f.write_fmt(format_args!(">"))?;
 
         for child in children.iter() {
