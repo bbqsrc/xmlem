@@ -16,7 +16,7 @@ impl Document<'_> {
     }
 
     // Incomplete
-    pub fn from_str(string: &str) -> Result<Self, quick_xml::Error> {
+    pub fn from_str(string: &str) -> Result<Self, super::Error> {
         let mut reader = Reader::from_str(string);
         let mut buffer = Vec::new();
 
@@ -44,14 +44,15 @@ impl Document<'_> {
                     }
                     // Root element
                     Event::Start(bytes) => {
-                        let name = std::str::from_utf8(bytes.name()).unwrap().to_string();
+                        let name = std::str::from_utf8(bytes.name())?.to_string();
 
-                        let document = Document::new(&name).unwrap();
+                        let document = Document::new(&name)?;
                         {
                             // Do we just ignore invalid attributes?
                             for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
-                                let value =
-                                    qxml_attribute.unescape_and_decode_value(&reader).unwrap();
+                                let value = qxml_attribute.unescape_and_decode_value(&reader)?;
+
+                                let suffix = std::str::from_utf8(qxml_attribute.key)?;
                             }
 
                             /*
