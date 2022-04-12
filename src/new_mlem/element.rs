@@ -1,18 +1,9 @@
 use std::cell::RefCell;
-use std::rc::Rc;
 use std::fmt::Display;
+use std::rc::Rc;
 
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
-pub struct QName {
-    pub name: String,
-}
-
-impl Display for QName {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.name, f)
-    }
-}
-
+use crate::new_mlem::node::Node;
+use crate::new_mlem::qname::QName;
 
 #[derive(Debug, Clone)]
 pub struct InnerElement {
@@ -28,6 +19,7 @@ impl Display for InnerElement {
 #[derive(Debug)]
 pub struct Element {
     inner_element: Rc<RefCell<InnerElement>>,
+    children: Vec<Node>,
 }
 
 impl Clone for Element {
@@ -36,6 +28,7 @@ impl Clone for Element {
 
         Self {
             inner_element: Rc::new(RefCell::new(borrow.clone())),
+            children: self.children.clone(),
         }
     }
 
@@ -46,6 +39,12 @@ impl Clone for Element {
 
 impl Display for Element {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&RefCell::borrow(&*self.inner_element), f)
+        Display::fmt(&RefCell::borrow(&*self.inner_element), f)?;
+
+        for child in &self.children {
+            Display::fmt(&child, f)?;
+        }
+
+        Ok(())
     }
 }

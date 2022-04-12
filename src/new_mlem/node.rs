@@ -29,7 +29,6 @@ impl Display for Text {
     }
 }
 
-
 #[derive(Debug)]
 pub enum Node {
     Element(Element),
