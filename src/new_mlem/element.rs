@@ -28,7 +28,7 @@ impl Display for InnerElement {
 #[derive(Debug)]
 pub struct Element<'a> {
     inner_element: Rc<RefCell<InnerElement>>,
-    pub attributes: Vec<Attribute>,
+    attributes: Rc<RefCell<Vec<Attribute>>>,
     pub parent: Option<&'a Element<'a>>,
     pub children: Vec<Node>,
 }
@@ -43,16 +43,25 @@ impl<'a> Element<'a> {
 
         Ok(Self {
             inner_element: Rc::new(RefCell::new(inner_element)),
-            attributes: vec![],
+            attributes: Rc::new(RefCell::new(vec![])),
             parent: None,
             children: vec![],
         })
     }
 
-    pub fn add_attribute(&mut self, attribute: Attribute) -> Result<(), super::Error> {
-        self.attributes.push(attribute);
+    pub fn add_attribute(&self, attribute: Attribute) -> Result<(), super::Error> {
+        let mut borrow_mut = RefCell::borrow_mut(&*self.attributes);
+
+        borrow_mut.push(attribute);
 
         Ok(())
+    }
+
+    // Returns a clone of the attributes just for reading
+    pub fn attributes(&self) -> Result<Vec<Attribute>, super::Error> {
+        let borrow = RefCell::borrow(&*self.attributes);
+
+        Ok(borrow.clone())
     }
 }
 
