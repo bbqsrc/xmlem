@@ -17,17 +17,33 @@ impl Display for InnerElement {
 }
 
 #[derive(Debug)]
-pub struct Element {
+pub struct Element<'a> {
     inner_element: Rc<RefCell<InnerElement>>,
+    parent: Option<&'a Element<'a>>,
     children: Vec<Node>,
 }
 
-impl Clone for Element {
+impl Element<'_> {
+    pub fn new_root_element(name: impl Into<String>) -> Result<Self, super::Error> {
+        let qname = QName::new_without_namespace(name)?;
+
+        let inner_element = InnerElement { name: qname };
+
+        Ok(Element {
+            inner_element: Rc::new(RefCell::new(inner_element)),
+            parent: None,
+            children: vec![],
+        })
+    }
+}
+
+impl Clone for Element<'_> {
     fn clone(&self) -> Self {
         let borrow = RefCell::borrow(&*self.inner_element);
 
         Self {
             inner_element: Rc::new(RefCell::new(borrow.clone())),
+            parent: self.parent.clone(),
             children: self.children.clone(),
         }
     }
@@ -37,9 +53,11 @@ impl Clone for Element {
     }
 }
 
-impl Display for Element {
+impl Display for Element<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&RefCell::borrow(&*self.inner_element), f)?;
+
+        // Display parent?
 
         for child in &self.children {
             Display::fmt(&child, f)?;

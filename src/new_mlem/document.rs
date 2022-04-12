@@ -1,43 +1,19 @@
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
-pub struct Document {}
+use super::element::Element;
+use super::qname::QName;
 
-impl Document {
-    pub fn new(name: impl Into<String>) -> Result<Self, quick_xml::Error> {
-        Ok(Document {})
+pub struct Document<'a> {
+    pub root: Element<'a>,
+}
+
+impl Document<'_> {
+    pub fn new(root_element_name: impl Into<String>) -> Result<Self, super::Error> {
+        let root_element = Element::new_root_element(root_element_name)?;
+
+        Ok(Document { root: root_element })
     }
-
-    /*
-    pub fn root(name: impl Into<String>) -> Result<Rc<RefCell<Element>>, Error> {
-        let name = name.into();
-
-        if !is_valid_qname(&name) {
-            return Err(Error::InvalidQName(name));
-        }
-
-        Ok(Self::new(
-            QName {
-                namespace: None,
-                name,
-            },
-            None,
-        ))
-    }
-
-    fn new(name: QName, parent: Option<Rc<RefCell<Element>>>) -> Rc<RefCell<Element>> {
-        let name = name.into();
-
-        Rc::new(RefCell::new(Element {
-            attributes: Default::default(),
-            name,
-            children: Default::default(),
-            parent: parent.map(|x| Rc::downgrade(&x)),
-            local_main_namespace: Default::default(),
-            local_namespaces: Default::default(),
-        }))
-    }
-    */
 
     // Incomplete
     pub fn from_str(string: &str) -> Result<Self, quick_xml::Error> {
@@ -71,7 +47,35 @@ impl Document {
                         let name = std::str::from_utf8(bytes.name()).unwrap().to_string();
 
                         let document = Document::new(&name).unwrap();
-                        {}
+                        {
+                            // Do we just ignore invalid attributes?
+                            for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
+                                let value =
+                                    qxml_attribute.unescape_and_decode_value(&reader).unwrap();
+                            }
+
+                            /*
+                                for attr in e.attributes().filter_map(Result::ok) {
+                                let value = attr.unescape_and_decode_value(&r).unwrap();
+                                let s = std::str::from_utf8(attr.key)?;
+
+                                if s == "xmlns" {
+                                    let url = Url::parse(&value).unwrap();
+                                    root.set_local_main_namespace(Some(url));
+                                    continue;
+                                }
+
+                                if s.starts_with("xmlns:") {
+                                    let url = Url::parse(&value).unwrap();
+                                    root.add_local_namespace(url, s.split_once(":").unwrap().1);
+                                    continue;
+                                }
+
+                                let key: QName = QName::new(&root, s).unwrap();
+                                root.add_attr(key, value);
+                            }
+                                */
+                        }
 
                         break document;
                     }

@@ -1,17 +1,15 @@
 use std::fmt::Display;
 
-use crate::Error;
-
 #[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord)]
 pub struct QName {
     name: String,
 }
 
 impl QName {
-    pub fn new_without_namespace(name: impl Into<String>) -> Result<Self, Error> {
+    pub fn new_without_namespace(name: impl Into<String>) -> Result<Self, super::Error> {
         let name = name.into();
         if !is_valid_qname(&name) {
-            return Err(Error::InvalidQName(name));
+            return Err(super::Error::InvalidQName(name));
         }
 
         Ok(Self { name })
