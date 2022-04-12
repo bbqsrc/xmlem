@@ -5,7 +5,7 @@ use element::Element;
 
 pub mod document;
 pub mod element;
-mod new_mlem;
+pub mod new_mlem;
 pub mod node;
 pub mod qname;
 

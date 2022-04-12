@@ -1,8 +1,8 @@
-mod attribute;
-mod document;
-mod element;
-mod node;
-mod qname;
+pub mod attribute;
+pub mod document;
+pub mod element;
+pub mod node;
+pub mod qname;
 
 #[derive(Debug, thiserror::Error)]
 pub enum Error {
