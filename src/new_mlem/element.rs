@@ -1,5 +1,4 @@
 use std::cell::RefCell;
-use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
 
@@ -15,23 +14,32 @@ pub struct InnerElement {
 
 impl Display for InnerElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        Display::fmt(&self.name, f)
+        Display::fmt(&self.name, f)?;
+
+        // Format nicer
+        //for attribute in &self.attributes {
+        //    Display::fmt(&attribute, f)?;
+        //}
+
+        Ok(())
     }
 }
 
 #[derive(Debug)]
 pub struct Element<'a> {
     inner_element: Rc<RefCell<InnerElement>>,
-    attributes: Vec<&'a Attribute>,
-    parent: Option<&'a Element<'a>>,
-    children: Vec<Node>,
+    pub attributes: Vec<Attribute>,
+    pub parent: Option<&'a Element<'a>>,
+    pub children: Vec<Node>,
 }
 
 impl<'a> Element<'a> {
     pub fn new_root_element(name: impl Into<String>) -> Result<Self, super::Error> {
         let qname = QName::new_without_namespace(name)?;
 
-        let inner_element = InnerElement { name: qname };
+        let inner_element = InnerElement {
+            name: qname,
+        };
 
         Ok(Self {
             inner_element: Rc::new(RefCell::new(inner_element)),
@@ -41,14 +49,10 @@ impl<'a> Element<'a> {
         })
     }
 
-    pub fn add_attribute(&mut self, attribute: &'a Attribute) -> Result<(), super::Error> {
+    pub fn add_attribute(&mut self, attribute: Attribute) -> Result<(), super::Error> {
         self.attributes.push(attribute);
 
         Ok(())
-    }
-
-    pub fn attributes(&self) -> Result<Vec<&'a Attribute>, super::Error> {
-        Ok(self.attributes.clone())
     }
 }
 

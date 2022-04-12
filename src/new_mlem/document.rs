@@ -2,7 +2,6 @@ use quick_xml::events::Event;
 use quick_xml::Reader;
 
 use super::element::Element;
-use super::qname::QName;
 
 pub struct Document<'a> {
     pub root: Element<'a>,
