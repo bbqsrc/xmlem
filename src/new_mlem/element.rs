@@ -16,11 +16,6 @@ impl Display for InnerElement {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&self.name, f)?;
 
-        // Format nicer
-        //for attribute in &self.attributes {
-        //    Display::fmt(&attribute, f)?;
-        //}
-
         Ok(())
     }
 }
@@ -37,9 +32,7 @@ impl<'a> Element<'a> {
     pub fn new_root_element(name: impl Into<String>) -> Result<Self, super::Error> {
         let qname = QName::new_without_namespace(name)?;
 
-        let inner_element = InnerElement {
-            name: qname,
-        };
+        let inner_element = InnerElement { name: qname };
 
         Ok(Self {
             inner_element: Rc::new(RefCell::new(inner_element)),

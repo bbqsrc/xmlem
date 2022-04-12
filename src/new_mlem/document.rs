@@ -3,6 +3,7 @@ use std::fmt::Display;
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
+use super::attribute;
 use super::element::Element;
 
 pub struct Document<'a> {
@@ -53,44 +54,24 @@ impl Document<'_> {
                             for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
                                 let value = qxml_attribute.unescape_and_decode_value(&reader)?;
 
-                                /*
                                 let suffix = std::str::from_utf8(qxml_attribute.key)?;
 
                                 if suffix == "xmlns" {
-                                    let url = Url::parse(&value).unwrap();
-                                    root.set_local_main_namespace(Some(url));
+                                    //let url = Url::parse(&value).unwrap();
+                                    //root.set_local_main_namespace(Some(url));
                                     continue;
                                 }
 
                                 if suffix.starts_with("xmlns:") {
-                                    let url = Url::parse(&value).unwrap();
-                                    root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
+                                    //let url = Url::parse(&value).unwrap();
+                                    //root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
                                     continue;
                                 }
-                                */
+
+                                let attribute = attribute::create_attribute(suffix, value).unwrap();
+
+                                document.root.add_attribute(attribute).unwrap();
                             }
-
-                            /*
-                                for attr in e.attributes().filter_map(Result::ok) {
-                                let value = attr.unescape_and_decode_value(&r).unwrap();
-                                let s = std::str::from_utf8(attr.key)?;
-
-                                if s == "xmlns" {
-                                    let url = Url::parse(&value).unwrap();
-                                    root.set_local_main_namespace(Some(url));
-                                    continue;
-                                }
-
-                                if s.starts_with("xmlns:") {
-                                    let url = Url::parse(&value).unwrap();
-                                    root.add_local_namespace(url, s.split_once(":").unwrap().1);
-                                    continue;
-                                }
-
-                                let key: QName = QName::new(&root, s).unwrap();
-                                root.add_attr(key, value);
-                            }
-                                */
                         }
 
                         break document;
@@ -114,7 +95,6 @@ impl Display for Document<'_> {
         Ok(())
     }
 }
-
 
 /*
 impl Element {
