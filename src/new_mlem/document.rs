@@ -52,7 +52,21 @@ impl Document<'_> {
                             for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
                                 let value = qxml_attribute.unescape_and_decode_value(&reader)?;
 
+                                /*
                                 let suffix = std::str::from_utf8(qxml_attribute.key)?;
+
+                                if suffix == "xmlns" {
+                                    let url = Url::parse(&value).unwrap();
+                                    root.set_local_main_namespace(Some(url));
+                                    continue;
+                                }
+
+                                if suffix.starts_with("xmlns:") {
+                                    let url = Url::parse(&value).unwrap();
+                                    root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
+                                    continue;
+                                }
+                                */
                             }
 
                             /*
