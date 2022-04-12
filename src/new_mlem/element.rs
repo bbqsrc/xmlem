@@ -24,8 +24,9 @@ impl Display for InnerElement {
 pub struct Element<'a> {
     inner_element: Rc<RefCell<InnerElement>>,
     attributes: Rc<RefCell<Vec<Attribute>>>,
+    children: Rc<RefCell<Vec<Node<'a>>>>,
+
     pub parent: Option<&'a Element<'a>>,
-    pub children: Vec<Node>,
 }
 
 impl<'a> Element<'a> {
@@ -38,8 +39,25 @@ impl<'a> Element<'a> {
             inner_element: Rc::new(RefCell::new(inner_element)),
             attributes: Rc::new(RefCell::new(vec![])),
             parent: None,
-            children: vec![],
+            children: Rc::new(RefCell::new(vec![])),
         })
+    }
+
+    pub fn add_child(&'a self, mut child: Node<'a>) -> Result<(), super::Error> {
+        let mut borrowed_children = RefCell::borrow_mut(&*self.children);
+
+        match child {
+            Node::Element(ref mut child) => {
+                child.parent = Some(self);
+            }
+            Node::Text(ref mut child) => {
+                child.parent = Some(self);
+            }
+        }
+
+        borrowed_children.push(child);
+
+        Ok(())
     }
 
     pub fn add_attribute(&self, attribute: Attribute) -> Result<(), super::Error> {
@@ -53,6 +71,8 @@ impl<'a> Element<'a> {
     // Returns a clone of the attributes just for reading
     pub fn attributes(&self) -> Result<Vec<Attribute>, super::Error> {
         let borrow = RefCell::borrow(&*self.attributes);
+
+        //for attrt in borrow.iter() {
 
         Ok(borrow.clone())
     }
@@ -79,9 +99,11 @@ impl Display for Element<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         Display::fmt(&RefCell::borrow(&*self.inner_element), f)?;
 
+        let children = RefCell::borrow(&*self.children);
+
         // Display parent?
 
-        for child in &self.children {
+        for child in children.iter() {
             Display::fmt(&child, f)?;
         }
 

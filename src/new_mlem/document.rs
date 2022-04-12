@@ -49,29 +49,27 @@ impl Document<'_> {
                         let name = std::str::from_utf8(bytes.name())?.to_string();
 
                         let document = Document::new(&name)?;
-                        {
-                            // Do we just ignore invalid attributes?
-                            for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
-                                let value = qxml_attribute.unescape_and_decode_value(&reader)?;
 
-                                let suffix = std::str::from_utf8(qxml_attribute.key)?;
+                        // Do we just ignore invalid attributes?
+                        for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
+                            let value = qxml_attribute.unescape_and_decode_value(&reader)?;
 
-                                if suffix == "xmlns" {
-                                    //let url = Url::parse(&value).unwrap();
-                                    //root.set_local_main_namespace(Some(url));
-                                    continue;
-                                }
-
-                                if suffix.starts_with("xmlns:") {
-                                    //let url = Url::parse(&value).unwrap();
-                                    //root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
-                                    continue;
-                                }
-
-                                let attribute = attribute::create_attribute(suffix, value).unwrap();
-
-                                document.root.add_attribute(attribute).unwrap();
+                            let suffix = std::str::from_utf8(qxml_attribute.key)?;
+                            if suffix == "xmlns" {
+                                //let url = Url::parse(&value).unwrap();
+                                //root.set_local_main_namespace(Some(url));
+                                continue;
                             }
+
+                            if suffix.starts_with("xmlns:") {
+                                //let url = Url::parse(&value).unwrap();
+                                //root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
+                                continue;
+                            }
+
+                            let attribute = attribute::create_attribute(suffix, value).unwrap();
+
+                            document.root.add_attribute(attribute).unwrap();
                         }
 
                         break document;
@@ -82,7 +80,35 @@ impl Document<'_> {
             }
         };
 
-        //let mut element_stack = vec![root.clone()];
+        let mut element_stack = vec![document.root.clone()];
+
+        loop {
+            match reader.read_event(&mut buffer) {
+                Ok(event) => match event {
+                    Event::Start(bytes) => {
+                        let name = std::str::from_utf8(bytes.name()).unwrap();
+                        let parent = element_stack.last().unwrap();
+
+                        //let element = Element::new_child(parent, name).unwrap();
+                    }
+                    //Event::End(_) => todo!(),
+                    //Event::Empty(_) => todo!(),
+                    //Event::Text(_) => todo!(),
+                    //Event::Comment(_) => todo!(),
+                    //Event::CData(_) => todo!(),
+                    //Event::Decl(_) => todo!(),
+                    //Event::PI(_) => todo!(),
+                    //Event::DocType(_) => todo!(),
+                    //Event::Eof => todo!(),
+                    _ => panic!("aaa"),
+                },
+                Err(error) => panic!(
+                    "Error at position {}: {:?}",
+                    reader.buffer_position(),
+                    error
+                ),
+            }
+        }
 
         Ok(document)
     }
