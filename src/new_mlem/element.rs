@@ -3,10 +3,10 @@ use std::collections::BTreeMap;
 use std::fmt::Display;
 use std::rc::Rc;
 
-use quick_xml::events::attributes::Attribute;
-
 use crate::new_mlem::node::Node;
 use crate::new_mlem::qname::QName;
+
+use super::attribute::Attribute;
 
 #[derive(Debug, Clone)]
 pub struct InnerElement {
@@ -22,7 +22,7 @@ impl Display for InnerElement {
 #[derive(Debug)]
 pub struct Element<'a> {
     inner_element: Rc<RefCell<InnerElement>>,
-    attributes: Vec<&'a Attribute<'a>>,
+    attributes: Vec<&'a Attribute>,
     parent: Option<&'a Element<'a>>,
     children: Vec<Node>,
 }

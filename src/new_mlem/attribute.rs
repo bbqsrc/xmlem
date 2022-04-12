@@ -1,5 +1,6 @@
 use super::qname::QName;
 
+#[derive(Debug)]
 pub struct Attribute {
     key: QName,
     value: String,
