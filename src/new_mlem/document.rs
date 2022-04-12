@@ -1,3 +1,5 @@
+use std::fmt::Display;
+
 use quick_xml::events::Event;
 use quick_xml::Reader;
 
@@ -104,6 +106,15 @@ impl Document<'_> {
         Ok(document)
     }
 }
+
+impl Display for Document<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        Display::fmt(&self.root, f)?;
+
+        Ok(())
+    }
+}
+
 
 /*
 impl Element {
