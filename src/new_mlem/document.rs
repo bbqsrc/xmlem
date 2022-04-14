@@ -108,6 +108,7 @@ impl Document<'_> {
                     //Event::Eof => todo!(),
                     
                     //_ => panic!("aaa"),
+                    _ => {}
                 },
                 Err(error) => panic!(
                     "Error at position {}: {:?}",
