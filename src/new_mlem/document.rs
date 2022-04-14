@@ -1,10 +1,12 @@
 use std::fmt::Display;
+use std::rc::Rc;
 
-use quick_xml::events::Event;
+use quick_xml::events::{Event, BytesStart};
 use quick_xml::Reader;
 
 use super::attribute;
 use super::element::Element;
+use super::node::Node;
 
 pub struct Document<'a> {
     pub root: Element<'a>,
@@ -12,7 +14,7 @@ pub struct Document<'a> {
 
 impl Document<'_> {
     pub fn new(root_element_name: impl Into<String>) -> Result<Self, super::Error> {
-        let root_element = Element::new_root_element(root_element_name)?;
+        let root_element = Element::new(root_element_name)?;
 
         Ok(Document { root: root_element })
     }
@@ -50,27 +52,7 @@ impl Document<'_> {
 
                         let document = Document::new(&name)?;
 
-                        // Do we just ignore invalid attributes?
-                        for qxml_attribute in bytes.attributes().filter_map(Result::ok) {
-                            let value = qxml_attribute.unescape_and_decode_value(&reader)?;
-
-                            let suffix = std::str::from_utf8(qxml_attribute.key)?;
-                            if suffix == "xmlns" {
-                                //let url = Url::parse(&value).unwrap();
-                                //root.set_local_main_namespace(Some(url));
-                                continue;
-                            }
-
-                            if suffix.starts_with("xmlns:") {
-                                //let url = Url::parse(&value).unwrap();
-                                //root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
-                                continue;
-                            }
-
-                            let attribute = attribute::create_attribute(suffix, value).unwrap();
-
-                            document.root.add_attribute(attribute).unwrap();
-                        }
+                        add_attributes(&reader, bytes, &document.root)?;
 
                         break document;
                     }
@@ -80,16 +62,40 @@ impl Document<'_> {
             }
         };
 
-        let mut element_stack = vec![document.root.clone()];
+        let mut element_stack = vec![Rc::new(document.root.clone())];
 
         loop {
             match reader.read_event(&mut buffer) {
                 Ok(event) => match event {
                     Event::Start(bytes) => {
                         let name = std::str::from_utf8(bytes.name()).unwrap();
-                        let parent = element_stack.last().unwrap();
 
-                        //let element = Element::new_child(parent, name).unwrap();
+                        let child_element = Rc::new(Element::new(name).unwrap());
+                        let cloned_child_element = Rc::clone(&child_element);
+
+                        
+                        add_attributes(&reader, bytes, &child_element)?;
+                        //let borrowed_child = *cloned_child_element;
+                        //let child_node = Node::Element(*child_element);
+
+
+                        
+                        /*
+                        let cloned_child_element = Rc::clone(&child_element);
+                        
+
+                        //let mut mut_child = Rc::make_mut(&mut child_element);
+                        
+                        
+
+                        let parent = element_stack.last().unwrap();
+                        let cloned_parent = Rc::clone(parent);
+                        cloned_parent.add_child(child_node).unwrap();
+
+                        element_stack.push(cloned_child_element); *
+                        */
+
+
                     }
                     //Event::End(_) => todo!(),
                     //Event::Empty(_) => todo!(),
@@ -120,6 +126,32 @@ impl Display for Document<'_> {
 
         Ok(())
     }
+}
+
+
+fn add_attributes(reader: &Reader<&[u8]>, qxml_bytes: BytesStart, element: &Element) -> Result<(), super::Error> {
+    for qxml_attribute in qxml_bytes.attributes().filter_map(Result::ok) {
+        let value = qxml_attribute.unescape_and_decode_value(&reader)?;
+
+        let suffix = std::str::from_utf8(qxml_attribute.key)?;
+        if suffix == "xmlns" {
+            //let url = Url::parse(&value).unwrap();
+            //root.set_local_main_namespace(Some(url));
+            continue;
+        }
+
+        if suffix.starts_with("xmlns:") {
+            //let url = Url::parse(&value).unwrap();
+            //root.add_local_namespace(url, suffix.split_once(":").unwrap().1);
+            continue;
+        }
+
+        let attribute = attribute::create_attribute(suffix, value).unwrap();
+
+        element.add_attribute(attribute).unwrap();
+    }
+
+    Ok(())
 }
 
 /*

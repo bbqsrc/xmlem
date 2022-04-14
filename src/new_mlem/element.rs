@@ -30,7 +30,7 @@ pub struct Element<'a> {
 }
 
 impl<'a> Element<'a> {
-    pub fn new_root_element(name: impl Into<String>) -> Result<Self, super::Error> {
+    pub fn new(name: impl Into<String>) -> Result<Self, super::Error> {
         let qname = QName::new_without_namespace(name)?;
 
         let inner_element = InnerElement { name: qname };
