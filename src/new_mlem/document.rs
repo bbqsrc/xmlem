@@ -62,7 +62,7 @@ impl Document<'_> {
             }
         };
 
-        let mut element_stack = vec![Rc::new(document.root.clone())];
+        let mut element_stack: Vec<&Element> = vec![&document.root];
 
         loop {
             match reader.read_event(&mut buffer) {
@@ -70,32 +70,15 @@ impl Document<'_> {
                     Event::Start(bytes) => {
                         let name = std::str::from_utf8(bytes.name()).unwrap();
 
-                        let child_element = Rc::new(Element::new(name).unwrap());
-                        let cloned_child_element = Rc::clone(&child_element);
-
+                        let child_element = Element::new(name).unwrap();
                         
                         add_attributes(&reader, bytes, &child_element)?;
-                        //let borrowed_child = *cloned_child_element;
-                        //let child_node = Node::Element(*child_element);
 
-
-                        
-                        /*
-                        let cloned_child_element = Rc::clone(&child_element);
-                        
-
-                        //let mut mut_child = Rc::make_mut(&mut child_element);
-                        
-                        
+                        let child_node = Node::Element(child_element);
 
                         let parent = element_stack.last().unwrap();
-                        let cloned_parent = Rc::clone(parent);
-                        cloned_parent.add_child(child_node).unwrap();
-
-                        element_stack.push(cloned_child_element); *
-                        */
-
-
+                        let added_child = parent.add_child(child_node).unwrap();
+                        element_stack.push(added_child);
                     }
                     //Event::End(_) => todo!(),
                     //Event::Empty(_) => todo!(),

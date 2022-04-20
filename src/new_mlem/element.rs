@@ -43,21 +43,23 @@ impl<'a> Element<'a> {
         })
     }
 
-    pub fn add_child(&'a self, mut child: Node<'a>) -> Result<(), super::Error> {
+    pub fn add_child(&'a self, mut child: Node<'a>) -> Result<&Element, super::Error> {
         let mut borrowed_children = RefCell::borrow_mut(&*self.children);
+
+        let optioned_node = Some(self);
 
         match child {
             Node::Element(ref mut child) => {
-                child.parent = Some(self);
+                child.parent = optioned_node;
             }
             Node::Text(ref mut child) => {
-                child.parent = Some(self);
+                child.parent = optioned_node;
             }
         }
 
         borrowed_children.push(child);
 
-        Ok(())
+        Ok(self)
     }
 
     pub fn add_attribute(&self, attribute: Attribute) -> Result<(), super::Error> {
