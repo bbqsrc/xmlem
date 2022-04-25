@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 
 use crate::{
     document::Document,
-    key::{DocKey, Node},
+    key::{CDataSection, Comment, DocKey, Node, Text},
     value::{ElementValue, ItemValue, NodeValue},
 };
 
@@ -37,7 +37,7 @@ impl Element {
         Element(new_key)
     }
 
-    pub fn append_text(self, document: &mut Document, text: &str) -> Element {
+    pub fn append_text(self, document: &mut Document, text: &str) -> Text {
         let new_key = document
             .items
             .insert(ItemValue::Node(NodeValue::Text(text.to_string())));
@@ -49,11 +49,11 @@ impl Element {
             .as_element_mut()
             .unwrap()
             .children
-            .push(Node::Element(Element(new_key)));
-        Element(new_key)
+            .push(Node::Text(Text(new_key)));
+        Text(new_key)
     }
 
-    pub fn append_cdata(self, document: &mut Document, text: &str) -> Element {
+    pub fn append_cdata(self, document: &mut Document, text: &str) -> CDataSection {
         let new_key = document
             .items
             .insert(ItemValue::Node(NodeValue::CData(text.to_string())));
@@ -65,8 +65,24 @@ impl Element {
             .as_element_mut()
             .unwrap()
             .children
-            .push(Node::Element(Element(new_key)));
-        Element(new_key)
+            .push(Node::CDataSection(CDataSection(new_key)));
+        CDataSection(new_key)
+    }
+
+    pub fn append_comment(self, document: &mut Document, text: &str) -> Comment {
+        let new_key = document
+            .items
+            .insert(ItemValue::Node(NodeValue::Comment(text.to_string())));
+        document.parents.insert(new_key, self);
+        document
+            .items
+            .get_mut(self.0)
+            .unwrap()
+            .as_element_mut()
+            .unwrap()
+            .children
+            .push(Node::Comment(Comment(new_key)));
+        Comment(new_key)
     }
 
     pub fn remove_child(self, document: &mut Document, node: Node) {

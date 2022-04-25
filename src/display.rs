@@ -40,14 +40,11 @@ impl Display for Document {
             Display::fmt(&decl, f)?;
         }
 
-        if let Some(doctype) = self.doctype.as_ref() {
-            write!(f, "<!DOCTYPE{}>", doctype)?;
-
-            if f.alternate() {
-                f.write_str("\n")?;
-            }
+        for node in self.before.iter() {
+            let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
+            node_value.display_fmt(self, node.as_key(), f, 0)?;
         }
-
+        
         let element = self
             .items
             .get(self.root_key.0)
@@ -55,7 +52,14 @@ impl Display for Document {
             .as_element()
             .unwrap();
 
-        element.display_fmt(self, self.root_key.0, f, 0)
+        element.display_fmt(self, self.root_key.0, f, 0)?;
+
+        for node in self.after.iter() {
+            let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
+            node_value.display_fmt(self, node.as_key(), f, 0)?;
+        }
+
+        Ok(())
     }
 }
 
@@ -163,9 +167,17 @@ impl NodeValue {
     ) -> std::fmt::Result {
         match self {
             NodeValue::Element(e) => e.display_fmt(doc, k, f, indent),
-            NodeValue::Text(t) => f.write_str(&*process_entities(t)),
+            NodeValue::Text(t) => f.write_str(&*process_entities(t).trim()),
             NodeValue::CData(t) => write!(f, "<![CDATA[[{}]]>", t),
+            NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
+            NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
+        }?;
+
+        if f.alternate() {
+            f.write_str("\n")?;
         }
+
+        Ok(())
     }
 }
 

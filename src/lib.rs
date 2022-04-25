@@ -131,4 +131,11 @@ mod tests {
         println!("{}", doc);
         println!("{}", doc2);
     }
+
+    #[test]
+    fn hmm() {
+        let input = "<?xml version=\"1.1\" ?>some random text<![CDATA[<hahaha>]]><!DOCTYPE root ahh ahhhh><!-- pre --><root/><!-- comment --> some other text";
+        let doc = Document::from_str(input).unwrap();
+        println!("{:#}", doc);
+    }
 }

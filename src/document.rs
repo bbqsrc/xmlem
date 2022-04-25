@@ -2,9 +2,10 @@ use indexmap::IndexMap;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
-    element::Element,
-    key::DocKey,
+    element::{self, Element},
+    key::{CDataSection, Comment, DocKey, DocumentType, Text},
     value::{ElementValue, ItemValue, NodeValue},
+    Node,
 };
 
 #[derive(Debug, Clone)]
@@ -13,7 +14,9 @@ pub struct Document {
     pub(crate) parents: SparseSecondaryMap<DocKey, Element>,
     pub(crate) attrs: SparseSecondaryMap<DocKey, IndexMap<String, String>>,
     pub(crate) root_key: Element,
-    pub(crate) doctype: Option<String>,
+    pub(crate) before: Vec<Node>,
+    pub(crate) after: Vec<Node>,
+    // pub(crate) doctype: Option<String>,
     pub(crate) decl: Option<Declaration>,
 }
 
@@ -42,7 +45,9 @@ impl Document {
             parents,
             attrs,
             root_key,
-            doctype: None,
+            // doctype: None,
+            before: vec![],
+            after: vec![],
             decl: None,
         }
     }
@@ -66,13 +71,24 @@ impl Document {
         let mut r = Reader::from_str(s);
         let mut buf = Vec::new();
 
-        let mut doctype: Option<String> = None;
         let mut decl: Option<Declaration> = None;
+
+        // let mut doctype: Option<String> = None;
+        let mut items = SlotMap::with_key();
+        let parents = SparseSecondaryMap::new();
+        let attrs = SparseSecondaryMap::new();
+
+        let mut before: Vec<Node> = vec![];
+        let mut element_stack = vec![];
 
         let mut doc = loop {
             match r.read_event(&mut buf) {
                 Ok(Event::DocType(d)) => {
-                    doctype = Some(d.unescape_and_decode(&r).unwrap());
+                    before.push(Node::DocumentType(DocumentType(items.insert(
+                        ItemValue::Node(NodeValue::DocumentType(
+                            d.unescape_and_decode(&r).unwrap(),
+                        )),
+                    ))));
                 }
                 Ok(Event::Decl(d)) => {
                     let version = d
@@ -94,10 +110,31 @@ impl Document {
                         encoding,
                     });
                 }
-                Ok(Event::Start(e)) => {
+                Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
                     let name = std::str::from_utf8(e.name()).unwrap().to_string();
-                    let mut document = Document::new(&name);
+
+                    let root_key = Element(items.insert(ItemValue::Node(NodeValue::Element(
+                        ElementValue {
+                            name: name.into(),
+                            children: vec![],
+                        },
+                    ))));
+
+                    let mut document = Document {
+                        items,
+                        parents,
+                        attrs,
+                        root_key,
+                        decl,
+                        before,
+                        after: vec![],
+                    };
+
                     let root = document.root();
+
+                    if matches!(x, Event::Start(_)) {
+                        element_stack.push(root);
+                    }
 
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_and_decode_value(&r).unwrap();
@@ -108,30 +145,47 @@ impl Document {
 
                     break document;
                 }
-                Ok(Event::Text(e)) if e.len() == 0 => {
-                    continue;
-                }
-                Ok(Event::Text(e))
+                Ok(Event::Text(e)) => {
+                    if e.len() == 0 {
+                        continue;
+                    }
                     if e.unescape_and_decode(&r)
                         .map(|x| x.trim().len() == 0)
-                        .unwrap_or(false) =>
-                {
-                    continue;
+                        .unwrap_or(false)
+                    {
+                        continue;
+                    }
+                    before.push(Node::Text(Text(items.insert(ItemValue::Node(
+                        NodeValue::Text(e.unescape_and_decode(&r).unwrap()),
+                    )))));
                 }
-                x => panic!("Not a root? {:?}", x),
+                Ok(Event::Comment(e)) => {
+                    before.push(Node::Comment(Comment(items.insert(ItemValue::Node(
+                        NodeValue::Comment(e.unescape_and_decode(&r).unwrap()),
+                    )))));
+                }
+                Ok(Event::CData(e)) => {
+                    before.push(Node::CDataSection(CDataSection(items.insert(
+                        ItemValue::Node(NodeValue::CData(e.unescape_and_decode(&r).unwrap())),
+                    ))));
+                }
+                Ok(x) => {
+                    panic!("Uhh... {:?}", x);
+                }
+                Err(e) => return Err(e),
             }
         };
-
-        doc.doctype = doctype;
-        doc.decl = decl;
-
-        let mut element_stack = vec![doc.root()];
 
         loop {
             match r.read_event(&mut buf) {
                 Ok(Event::Start(e)) => {
                     let name = std::str::from_utf8(e.name()).unwrap().to_string();
-                    let parent = element_stack.last().unwrap();
+                    let parent = match element_stack.last() {
+                        Some(v) => v,
+                        None => {
+                            return Err(quick_xml::Error::UnexpectedToken(name));
+                        }
+                    };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_and_decode_value(&r)?;
@@ -143,7 +197,12 @@ impl Document {
                 }
                 Ok(Event::Empty(e)) => {
                     let name = std::str::from_utf8(e.name()).unwrap().to_string();
-                    let parent = element_stack.last().unwrap();
+                    let parent = match element_stack.last() {
+                        Some(v) => v,
+                        None => {
+                            return Err(quick_xml::Error::UnexpectedToken(name));
+                        }
+                    };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_and_decode_value(&r)?;
@@ -157,17 +216,43 @@ impl Document {
                 Ok(Event::Text(e)) => {
                     let text = e.unescape_and_decode(&r)?;
                     if text.trim().len() > 0 {
-                        let el = element_stack.last().unwrap();
-                        el.append_text(&mut doc, &text);
+                        match element_stack.last() {
+                            Some(el) => {
+                                el.append_text(&mut doc, &text);
+                            }
+                            None => {
+                                doc.after.push(Node::Text(Text(
+                                    doc.items.insert(ItemValue::Node(NodeValue::Text(text))),
+                                )));
+                            }
+                        }
                     }
                 }
                 Ok(Event::CData(cdata)) => {
                     let text = cdata.unescape_and_decode(&r)?;
-                    let el = element_stack.last().unwrap();
-                    el.append_cdata(&mut doc, &text);
+                    match element_stack.last() {
+                        Some(el) => {
+                            el.append_cdata(&mut doc, &text);
+                        }
+                        None => {
+                            doc.after.push(Node::CDataSection(CDataSection(
+                                doc.items.insert(ItemValue::Node(NodeValue::CData(text))),
+                            )));
+                        }
+                    }
                 }
-                Ok(Event::Comment(_comment)) => {
-                    continue;
+                Ok(Event::Comment(comment)) => {
+                    let text = comment.unescape_and_decode(&r)?;
+                    match element_stack.last() {
+                        Some(el) => {
+                            el.append_comment(&mut doc, &text);
+                        }
+                        None => {
+                            doc.after.push(Node::Comment(Comment(
+                                doc.items.insert(ItemValue::Node(NodeValue::Comment(text))),
+                            )));
+                        }
+                    }
                 }
                 Ok(Event::PI(_processing_instruction)) => {
                     continue;
@@ -178,7 +263,9 @@ impl Document {
                 Ok(Event::DocType(_doctype)) => {
                     continue;
                 }
-                Ok(Event::Eof) => break, // exits the loop when reaching end of file
+                Ok(Event::Eof) => {
+                    break;
+                } // exits the loop when reaching end of file
                 Err(e) => {
                     return Err(e);
                 }

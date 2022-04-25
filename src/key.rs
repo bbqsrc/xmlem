@@ -9,17 +9,37 @@ new_key_type! {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Text(pub(crate) DocKey);
 
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct CDataSection(pub(crate) DocKey);
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct ProcessingInstruction(pub(crate) DocKey);
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct Comment(pub(crate) DocKey);
+
+#[derive(Debug, PartialEq, Eq, Copy, Clone)]
+pub struct DocumentType(pub(crate) DocKey);
+
 #[derive(Debug, Copy, PartialEq, Eq, Clone)]
 pub enum Node {
     Element(Element),
     Text(Text),
+    CDataSection(CDataSection),
+    ProcessingInstruction(ProcessingInstruction),
+    Comment(Comment),
+    DocumentType(DocumentType),
 }
 
 impl Node {
     pub(crate) fn as_key(self) -> DocKey {
         match self {
             Node::Element(e) => e.0,
-            Node::Text(t) => t.0,
+            Node::Text(e) => e.0,
+            Node::CDataSection(e) => e.0,
+            Node::ProcessingInstruction(e) => e.0,
+            Node::Comment(e) => e.0,
+            Node::DocumentType(e) => e.0,
         }
     }
 }
