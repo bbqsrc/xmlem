@@ -1,9 +1,9 @@
-use std::{fmt::Display, borrow::Cow};
+use std::{borrow::Cow, fmt::Display};
 
 use indexmap::IndexMap;
 
 use crate::{
-    document::{Document, Declaration},
+    document::{Declaration, Document},
     key::DocKey,
     value::{ElementValue, ItemValue, NodeValue},
 };
@@ -170,7 +170,8 @@ impl NodeValue {
 }
 
 fn process_entities(input: &str) -> Cow<'_, str> {
-    if input.contains(['<', '>', '\'', '"', '&']) || input.contains(|c: char| c.is_ascii_control()) {
+    if input.contains(['<', '>', '\'', '"', '&']) || input.contains(|c: char| c.is_ascii_control())
+    {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
             s.push_str(match ch {

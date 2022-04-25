@@ -75,26 +75,23 @@ impl Document {
                     doctype = Some(d.unescape_and_decode(&r).unwrap());
                 }
                 Ok(Event::Decl(d)) => {
-                    let version = d.version().map(|x| std::str::from_utf8(&x).unwrap().to_string()).ok();
-                    let standalone = d.standalone()
-                        .and_then(|x| {
-                            match x {
-                                Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
-                                Err(_) => None,
-                            }
-                        });
-                    let encoding = d.encoding()
-                        .and_then(|x| {
-                            match x {
-                                Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
-                                Err(_) => None,
-                            }
-                        });
-                    
+                    let version = d
+                        .version()
+                        .map(|x| std::str::from_utf8(&x).unwrap().to_string())
+                        .ok();
+                    let standalone = d.standalone().and_then(|x| match x {
+                        Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
+                        Err(_) => None,
+                    });
+                    let encoding = d.encoding().and_then(|x| match x {
+                        Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
+                        Err(_) => None,
+                    });
+
                     decl = Some(Declaration {
                         version,
                         standalone,
-                        encoding
+                        encoding,
                     });
                 }
                 Ok(Event::Start(e)) => {

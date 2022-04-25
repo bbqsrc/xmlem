@@ -1,4 +1,4 @@
-use slotmap::{new_key_type, SecondaryMap, SlotMap};
+use slotmap::new_key_type;
 
 use crate::element::Element;
 
