@@ -1,18 +1,20 @@
 use crate::key::Node;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum NodeValue {
     Element(ElementValue),
     Text(String),
     CData(String),
+    Comment(String),
+    DocumentType(String),   
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) enum ItemValue {
     Node(NodeValue),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub(crate) struct ElementValue {
     pub(crate) name: String,
     pub(crate) children: Vec<Node>,
