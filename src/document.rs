@@ -7,7 +7,7 @@ use crate::{
     value::{ElementValue, ItemValue, NodeValue},
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Document {
     pub(crate) items: SlotMap<DocKey, ItemValue>,
     pub(crate) parents: SparseSecondaryMap<DocKey, Element>,
@@ -17,7 +17,7 @@ pub struct Document {
     pub(crate) decl: Option<Declaration>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Declaration {
     pub version: Option<String>,
     pub encoding: Option<String>,

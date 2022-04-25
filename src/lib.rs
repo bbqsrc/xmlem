@@ -112,4 +112,23 @@ mod tests {
 
         println!("{:#}", doc);
     }
+
+    #[test]
+    fn clone() {
+        let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
+        let doc = Document::from_str(input).unwrap();
+        let mut doc2 = doc.clone();
+
+        let root = doc2.root();
+        root.append_new_element(
+            &mut doc2,
+            NewElement {
+                name: "lol".to_string(),
+                attrs: Default::default(),
+            },
+        );
+
+        println!("{}", doc);
+        println!("{}", doc2);
+    }
 }

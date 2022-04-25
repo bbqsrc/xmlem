@@ -10,7 +10,7 @@ use crate::{
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Element(pub(crate) DocKey);
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct NewElement {
     pub name: String,
     pub attrs: IndexMap<String, String>,
