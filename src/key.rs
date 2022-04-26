@@ -42,4 +42,11 @@ impl Node {
             Node::DocumentType(e) => e.0,
         }
     }
+
+    pub fn as_element(self) -> Option<Element> {
+        match self {
+            Node::Element(e) => Some(e),
+            _ => None,
+        }
+    }
 }

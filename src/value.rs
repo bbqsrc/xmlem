@@ -6,7 +6,7 @@ pub(crate) enum NodeValue {
     Text(String),
     CData(String),
     Comment(String),
-    DocumentType(String),   
+    DocumentType(String),
 }
 
 #[derive(Debug, Clone)]
@@ -15,7 +15,7 @@ pub(crate) enum ItemValue {
 }
 
 #[derive(Debug, Clone)]
-pub(crate) struct ElementValue {
+pub struct ElementValue {
     pub(crate) name: String,
     pub(crate) children: Vec<Node>,
 }

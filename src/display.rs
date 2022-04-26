@@ -1,4 +1,8 @@
-use std::{borrow::Cow, fmt::Display};
+use std::{
+    borrow::Cow,
+    fmt::Display,
+    io::{self, Write},
+};
 
 use indexmap::IndexMap;
 
@@ -42,7 +46,9 @@ impl Display for Document {
 
         for node in self.before.iter() {
             let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
-            node_value.display_fmt(self, node.as_key(), f, 0)?;
+            node_value
+                .display_fmt(self, node.as_key(), f, 0)
+                .map_err(|e| std::fmt::Error)?;
         }
 
         let element = self
@@ -52,21 +58,22 @@ impl Display for Document {
             .as_element()
             .unwrap();
 
-        element.display_fmt(self, self.root_key.0, f, 0)?;
+        element
+            .display_fmt(self, self.root_key.0, f, 0)
+            .map_err(|_e| std::fmt::Error)?;
 
         for node in self.after.iter() {
             let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
-            node_value.display_fmt(self, node.as_key(), f, 0)?;
+            node_value
+                .display_fmt(self, node.as_key(), f, 0)
+                .map_err(|_e| std::fmt::Error)?;
         }
 
         Ok(())
     }
 }
 
-fn fmt_attrs(
-    f: &mut std::fmt::Formatter<'_>,
-    attrs: &IndexMap<String, String>,
-) -> std::fmt::Result {
+fn fmt_attrs(f: &mut dyn Write, attrs: &IndexMap<String, String>) -> io::Result<()> {
     let mut iter = attrs.iter();
 
     if let Some((k, v)) = iter.next() {
@@ -83,28 +90,29 @@ fn fmt_attrs(
 }
 
 impl ElementValue {
-    fn display_fmt(
+    pub(crate) fn display(
         &self,
         doc: &Document,
         k: DocKey,
-        f: &mut std::fmt::Formatter<'_>,
+        f: &mut dyn Write,
         indent: usize,
-    ) -> std::fmt::Result {
+        alternate: bool,
+    ) -> io::Result<()> {
         if self.children.is_empty() {
             match doc.attrs.get(k) {
                 Some(attrs) if !attrs.is_empty() => {
                     write!(f, "{:>indent$}<{} ", "", self.name, indent = indent)?;
                     fmt_attrs(f, attrs)?;
                     write!(f, " />")?;
-                    if f.alternate() {
-                        f.write_str("\n")?;
+                    if alternate {
+                        write!(f, "\n")?;
                     }
                     return Ok(());
                 }
                 _ => {
                     write!(f, "{:>indent$}<{} />", "", self.name, indent = indent)?;
-                    if f.alternate() {
-                        f.write_str("\n")?;
+                    if alternate {
+                        write!(f, "\n")?;
                     }
                     return Ok(());
                 }
@@ -116,41 +124,65 @@ impl ElementValue {
                 write!(f, "{:>indent$}<{} ", "", self.name, indent = indent)?;
                 fmt_attrs(f, attrs)?;
                 write!(f, ">")?;
-                if f.alternate() {
-                    f.write_str("\n")?;
+                if alternate {
+                    write!(f, "\n")?;
                 }
             }
             _ => {
                 write!(f, "{:>indent$}<{}>", "", self.name, indent = indent)?;
-                if f.alternate() {
-                    f.write_str("\n")?;
+                if alternate {
+                    write!(f, "\n")?;
                 }
             }
         }
 
-        let child_indent = if f.alternate() { indent + 2 } else { 0 };
+        let child_indent = if alternate { indent + 2 } else { 0 };
         for child in self.children.iter() {
             let value = doc.items.get(child.as_key()).unwrap();
-            value.display_fmt(doc, child.as_key(), f, child_indent)?;
+            value.display(doc, child.as_key(), f, child_indent, alternate)?;
         }
         write!(f, "{:>indent$}</{}>", "", self.name, indent = indent)?;
 
-        if f.alternate() {
-            f.write_str("\n")?;
+        if alternate {
+            write!(f, "\n")?;
         }
 
         Ok(())
     }
+
+    pub(crate) fn display_fmt(
+        &self,
+        doc: &Document,
+        k: DocKey,
+        f: &mut std::fmt::Formatter<'_>,
+        indent: usize,
+    ) -> io::Result<()> {
+        let alternate = f.alternate();
+        self.display(doc, k, &mut FmtWriter(f), indent, alternate)
+    }
 }
 
 impl ItemValue {
+    fn display(
+        &self,
+        doc: &Document,
+        k: DocKey,
+        f: &mut dyn Write,
+        indent: usize,
+        alternate: bool,
+    ) -> io::Result<()> {
+        match self {
+            ItemValue::Node(n) => n.display(doc, k, f, indent, alternate),
+        }
+    }
+
     fn display_fmt(
         &self,
         doc: &Document,
         k: DocKey,
         f: &mut std::fmt::Formatter<'_>,
         indent: usize,
-    ) -> std::fmt::Result {
+    ) -> io::Result<()> {
         match self {
             ItemValue::Node(n) => n.display_fmt(doc, k, f, indent),
         }
@@ -158,37 +190,49 @@ impl ItemValue {
 }
 
 impl NodeValue {
+    pub(crate) fn display(
+        &self,
+        doc: &Document,
+        k: DocKey,
+        f: &mut dyn Write,
+        indent: usize,
+        alternate: bool,
+    ) -> io::Result<()> {
+        match self {
+            NodeValue::Element(e) => {
+                return e.display(doc, k, f, indent, alternate);
+            }
+            _ => {}
+        }
+
+        if alternate {
+            write!(f, "{:>indent$}", "", indent = indent)?;
+        }
+
+        match self {
+            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t).trim()),
+            NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
+            NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
+            NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
+            NodeValue::Element(_) => unreachable!(),
+        }?;
+
+        if alternate {
+            write!(f, "\n")?;
+        }
+
+        Ok(())
+    }
+
     fn display_fmt(
         &self,
         doc: &Document,
         k: DocKey,
         f: &mut std::fmt::Formatter<'_>,
         indent: usize,
-    ) -> std::fmt::Result {
-        match self {
-            NodeValue::Element(e) => {
-                return e.display_fmt(doc, k, f, indent);
-            }
-            _ => {}
-        }
-
-        if f.alternate() {
-            write!(f, "{:>indent$}", "", indent = indent)?;
-        }
-
-        match self {
-            NodeValue::Text(t) => f.write_str(&*process_entities(t).trim()),
-            NodeValue::CData(t) => write!(f, "<![CDATA[[{}]]>", t),
-            NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
-            NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
-            NodeValue::Element(_) => unreachable!(),
-        }?;
-
-        if f.alternate() {
-            f.write_str("\n")?;
-        }
-
-        Ok(())
+    ) -> io::Result<()> {
+        let alternate = f.alternate();
+        self.display(doc, k, &mut FmtWriter(f), indent, alternate)
     }
 }
 
@@ -216,5 +260,21 @@ fn process_entities(input: &str) -> Cow<'_, str> {
         Cow::Owned(s)
     } else {
         Cow::Borrowed(input)
+    }
+}
+
+struct FmtWriter<'a, 'b>(&'b mut std::fmt::Formatter<'a>);
+
+impl Write for FmtWriter<'_, '_> {
+    fn write(&mut self, buf: &[u8]) -> io::Result<usize> {
+        let s = std::str::from_utf8(buf).map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        self.0
+            .write_str(s)
+            .map_err(|e| io::Error::new(io::ErrorKind::Other, e))?;
+        Ok(s.as_bytes().len())
+    }
+
+    fn flush(&mut self) -> io::Result<()> {
+        Ok(())
     }
 }

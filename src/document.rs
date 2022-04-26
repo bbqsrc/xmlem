@@ -16,7 +16,6 @@ pub struct Document {
     pub(crate) root_key: Element,
     pub(crate) before: Vec<Node>,
     pub(crate) after: Vec<Node>,
-    // pub(crate) doctype: Option<String>,
     pub(crate) decl: Option<Declaration>,
 }
 
@@ -45,7 +44,6 @@ impl Document {
             parents,
             attrs,
             root_key,
-            // doctype: None,
             before: vec![],
             after: vec![],
             decl: None,
@@ -73,7 +71,6 @@ impl Document {
 
         let mut decl: Option<Declaration> = None;
 
-        // let mut doctype: Option<String> = None;
         let mut items = SlotMap::with_key();
         let parents = SparseSecondaryMap::new();
         let attrs = SparseSecondaryMap::new();

@@ -130,6 +130,16 @@ impl Element {
         let attrs = document.attrs.get_mut(self.0).unwrap();
         attrs.insert(name.into(), value.into());
     }
+
+    pub fn display<'d>(&self, document: &'d Document) -> String {
+        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        let mut s = Vec::<u8>::new();
+        element
+            .display(&document, self.0, &mut s, 0, false)
+            .expect("Invalid string somehow");
+        let s = String::from_utf8(s).expect("Invalid string somehow");
+        s
+    }
 }
 
 static EMPTY_INDEXMAP: Lazy<IndexMap<String, String>> = Lazy::new(|| IndexMap::new());
