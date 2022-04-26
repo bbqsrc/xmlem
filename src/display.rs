@@ -13,15 +13,15 @@ impl Display for Declaration {
         f.write_str("<?xml ")?;
 
         if let Some(version) = self.version.as_deref() {
-            write!(f, "version=\"{}\"", version)?;
+            write!(f, "version=\"{}\" ", version)?;
         }
 
         if let Some(encoding) = self.encoding.as_deref() {
-            write!(f, "encoding=\"{}\"", encoding)?;
+            write!(f, "encoding=\"{}\" ", encoding)?;
         }
 
         if let Some(standalone) = self.standalone.as_deref() {
-            write!(f, "standalone=\"{}\"", standalone)?;
+            write!(f, "standalone=\"{}\" ", standalone)?;
         }
 
         f.write_str("?>")?;
@@ -44,7 +44,7 @@ impl Display for Document {
             let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
             node_value.display_fmt(self, node.as_key(), f, 0)?;
         }
-        
+
         let element = self
             .items
             .get(self.root_key.0)
@@ -166,11 +166,22 @@ impl NodeValue {
         indent: usize,
     ) -> std::fmt::Result {
         match self {
-            NodeValue::Element(e) => e.display_fmt(doc, k, f, indent),
+            NodeValue::Element(e) => {
+                return e.display_fmt(doc, k, f, indent);
+            }
+            _ => {}
+        }
+
+        if f.alternate() {
+            write!(f, "{:>indent$}", "", indent = indent)?;
+        }
+
+        match self {
             NodeValue::Text(t) => f.write_str(&*process_entities(t).trim()),
             NodeValue::CData(t) => write!(f, "<![CDATA[[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
+            NodeValue::Element(_) => unreachable!(),
         }?;
 
         if f.alternate() {
