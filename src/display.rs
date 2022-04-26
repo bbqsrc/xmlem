@@ -48,7 +48,7 @@ impl Display for Document {
             let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
             node_value
                 .display_fmt(self, node.as_key(), f, 0)
-                .map_err(|e| std::fmt::Error)?;
+                .map_err(|_| std::fmt::Error)?;
         }
 
         let element = self
@@ -82,7 +82,7 @@ fn fmt_attrs(f: &mut dyn Write, attrs: &IndexMap<String, String>) -> io::Result<
         return Ok(());
     }
 
-    while let Some((k, v)) = iter.next() {
+    for (k, v) in iter {
         write!(f, " {}=\"{}\"", k, process_entities(v))?;
     }
 
@@ -105,14 +105,14 @@ impl ElementValue {
                     fmt_attrs(f, attrs)?;
                     write!(f, " />")?;
                     if alternate {
-                        write!(f, "\n")?;
+                        writeln!(f)?;
                     }
                     return Ok(());
                 }
                 _ => {
                     write!(f, "{:>indent$}<{} />", "", self.name, indent = indent)?;
                     if alternate {
-                        write!(f, "\n")?;
+                        writeln!(f)?;
                     }
                     return Ok(());
                 }
@@ -125,13 +125,13 @@ impl ElementValue {
                 fmt_attrs(f, attrs)?;
                 write!(f, ">")?;
                 if alternate {
-                    write!(f, "\n")?;
+                    writeln!(f)?;
                 }
             }
             _ => {
                 write!(f, "{:>indent$}<{}>", "", self.name, indent = indent)?;
                 if alternate {
-                    write!(f, "\n")?;
+                    writeln!(f)?;
                 }
             }
         }
@@ -144,7 +144,7 @@ impl ElementValue {
         write!(f, "{:>indent$}</{}>", "", self.name, indent = indent)?;
 
         if alternate {
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())
@@ -175,18 +175,6 @@ impl ItemValue {
             ItemValue::Node(n) => n.display(doc, k, f, indent, alternate),
         }
     }
-
-    fn display_fmt(
-        &self,
-        doc: &Document,
-        k: DocKey,
-        f: &mut std::fmt::Formatter<'_>,
-        indent: usize,
-    ) -> io::Result<()> {
-        match self {
-            ItemValue::Node(n) => n.display_fmt(doc, k, f, indent),
-        }
-    }
 }
 
 impl NodeValue {
@@ -198,11 +186,8 @@ impl NodeValue {
         indent: usize,
         alternate: bool,
     ) -> io::Result<()> {
-        match self {
-            NodeValue::Element(e) => {
-                return e.display(doc, k, f, indent, alternate);
-            }
-            _ => {}
+        if let NodeValue::Element(e) = self {
+            return e.display(doc, k, f, indent, alternate);
         }
 
         if alternate {
@@ -218,7 +203,7 @@ impl NodeValue {
         }?;
 
         if alternate {
-            write!(f, "\n")?;
+            writeln!(f)?;
         }
 
         Ok(())

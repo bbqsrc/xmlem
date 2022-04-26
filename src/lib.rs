@@ -77,7 +77,7 @@ mod tests {
             },
         );
 
-        let potato = doc.root().append_new_element(
+        let _potato = doc.root().append_new_element(
             &mut doc,
             NewElement {
                 name: "potato".into(),

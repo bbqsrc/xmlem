@@ -15,9 +15,9 @@ use crate::{Document, Element};
 pub struct Selectors;
 
 #[derive(Debug, Clone, PartialEq, Eq, Default)]
-pub struct AttrValue(String);
+pub struct Value(String);
 
-impl cssparser::ToCss for AttrValue {
+impl cssparser::ToCss for Value {
     fn to_css<W>(&self, dest: &mut W) -> std::fmt::Result
     where
         W: std::fmt::Write,
@@ -26,25 +26,25 @@ impl cssparser::ToCss for AttrValue {
     }
 }
 
-impl From<&str> for AttrValue {
+impl From<&str> for Value {
     fn from(x: &str) -> Self {
-        AttrValue(x.to_string())
+        Value(x.to_string())
     }
 }
 
-impl AsRef<str> for AttrValue {
+impl AsRef<str> for Value {
     fn as_ref(&self) -> &str {
         &self.0
     }
 }
 
-impl Borrow<String> for AttrValue {
+impl Borrow<String> for Value {
     fn borrow(&self) -> &String {
         &self.0
     }
 }
 
-impl NonTSPseudoClass for AttrValue {
+impl NonTSPseudoClass for Value {
     type Impl = Selectors;
 
     fn is_active_or_hover(&self) -> bool {
@@ -56,21 +56,21 @@ impl NonTSPseudoClass for AttrValue {
     }
 }
 
-impl PseudoElement for AttrValue {
+impl PseudoElement for Value {
     type Impl = Selectors;
 }
 
 impl SelectorImpl for Selectors {
     type ExtraMatchingData = ();
-    type AttrValue = AttrValue;
-    type Identifier = AttrValue;
-    type LocalName = AttrValue;
+    type AttrValue = Value;
+    type Identifier = Value;
+    type LocalName = Value;
     type NamespaceUrl = String;
-    type NamespacePrefix = AttrValue;
+    type NamespacePrefix = Value;
     type BorrowedNamespaceUrl = String;
     type BorrowedLocalName = String;
-    type NonTSPseudoClass = AttrValue;
-    type PseudoElement = AttrValue;
+    type NonTSPseudoClass = Value;
+    type PseudoElement = Value;
 }
 
 #[derive(Debug, Clone)]
@@ -131,7 +131,7 @@ impl selectors::Element for ElementRef<'_> {
         self.element.name(self.document) == local_name
     }
 
-    fn has_namespace(&self, ns: &<Self::Impl as SelectorImpl>::BorrowedNamespaceUrl) -> bool {
+    fn has_namespace(&self, _ns: &<Self::Impl as SelectorImpl>::BorrowedNamespaceUrl) -> bool {
         false
     }
 
@@ -141,7 +141,7 @@ impl selectors::Element for ElementRef<'_> {
 
     fn attr_matches(
         &self,
-        ns: &NamespaceConstraint<&<Self::Impl as SelectorImpl>::NamespaceUrl>,
+        _ns: &NamespaceConstraint<&<Self::Impl as SelectorImpl>::NamespaceUrl>,
         local_name: &<Self::Impl as SelectorImpl>::LocalName,
         operation: &AttrSelectorOperation<&<Self::Impl as SelectorImpl>::AttrValue>,
     ) -> bool {
@@ -156,9 +156,9 @@ impl selectors::Element for ElementRef<'_> {
 
     fn match_non_ts_pseudo_class<F>(
         &self,
-        pc: &<Self::Impl as SelectorImpl>::NonTSPseudoClass,
-        context: &mut selectors::context::MatchingContext<Self::Impl>,
-        flags_setter: &mut F,
+        _pc: &<Self::Impl as SelectorImpl>::NonTSPseudoClass,
+        _context: &mut selectors::context::MatchingContext<Self::Impl>,
+        _flags_setter: &mut F,
     ) -> bool
     where
         F: FnMut(&Self, matching::ElementSelectorFlags),
@@ -168,8 +168,8 @@ impl selectors::Element for ElementRef<'_> {
 
     fn match_pseudo_element(
         &self,
-        pe: &<Self::Impl as SelectorImpl>::PseudoElement,
-        context: &mut selectors::context::MatchingContext<Self::Impl>,
+        _pe: &<Self::Impl as SelectorImpl>::PseudoElement,
+        _context: &mut selectors::context::MatchingContext<Self::Impl>,
     ) -> bool {
         false
     }
@@ -236,7 +236,7 @@ impl<'i> Parser<'i> for TheParser {
         &self,
         location: SourceLocation,
         name: CowRcStr<'i>,
-    ) -> Result<AttrValue, ParseError<'i, SelectorParseErrorKind<'i>>> {
+    ) -> Result<Value, ParseError<'i, SelectorParseErrorKind<'i>>> {
         Err(
             location.new_custom_error(SelectorParseErrorKind::UnsupportedPseudoClassOrElement(
                 name,
@@ -281,8 +281,3 @@ impl Selector {
         })
     }
 }
-
-// #[test]
-// fn wow() {
-//     println!("{:?}", compile("#some-id .potato > wow another nested tag, .and-this, *[anattr='potato']").unwrap());
-// }

@@ -147,18 +147,17 @@ impl Element {
         attrs.insert(name.into(), value.into());
     }
 
-    pub fn display<'d>(&self, document: &'d Document) -> String {
+    pub fn display(&self, document: &Document) -> String {
         let element = document.items.get(self.0).unwrap().as_element().unwrap();
         let mut s = Vec::<u8>::new();
         element
-            .display(&document, self.0, &mut s, 0, false)
+            .display(document, self.0, &mut s, 0, false)
             .expect("Invalid string somehow");
-        let s = String::from_utf8(s).expect("Invalid string somehow");
-        s
+        String::from_utf8(s).expect("Invalid string somehow")
     }
 
     pub fn walk<'d>(&self, doc: &'d Document) -> Box<dyn Iterator<Item = Element> + 'd> {
-        walk_tree(doc, self.clone())
+        walk_tree(doc, *self)
     }
 
     pub fn next_sibling_element(&self, doc: &Document) -> Option<Element> {
@@ -253,4 +252,4 @@ fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item =
     }))
 }
 
-static EMPTY_INDEXMAP: Lazy<IndexMap<String, String>> = Lazy::new(|| IndexMap::new());
+static EMPTY_INDEXMAP: Lazy<IndexMap<String, String>> = Lazy::new(IndexMap::new);

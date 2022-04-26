@@ -2,7 +2,7 @@ use indexmap::IndexMap;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
-    element::{self, Element},
+    element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
     value::{ElementValue, ItemValue, NodeValue},
     Node,
@@ -54,15 +54,15 @@ impl Document {
         self.root_key
     }
 
-    pub fn to_string(&self) -> String {
-        format!("{}", self)
-    }
-
     pub fn to_string_pretty(&self) -> String {
         format!("{:#}", self)
     }
+}
 
-    pub fn from_str(s: &str) -> Result<Document, quick_xml::Error> {
+impl std::str::FromStr for Document {
+    type Err = quick_xml::Error;
+
+    fn from_str(s: &str) -> Result<Document, quick_xml::Error> {
         use quick_xml::events::Event;
         use quick_xml::Reader;
 
@@ -112,7 +112,7 @@ impl Document {
 
                     let root_key = Element(items.insert(ItemValue::Node(NodeValue::Element(
                         ElementValue {
-                            name: name.into(),
+                            name,
                             children: vec![],
                         },
                     ))));
@@ -147,7 +147,7 @@ impl Document {
                         continue;
                     }
                     if e.unescape_and_decode(&r)
-                        .map(|x| x.trim().len() == 0)
+                        .map(|x| x.trim().is_empty())
                         .unwrap_or(false)
                     {
                         continue;
@@ -212,7 +212,7 @@ impl Document {
                 }
                 Ok(Event::Text(e)) => {
                     let text = e.unescape_and_decode(&r)?;
-                    if text.trim().len() > 0 {
+                    if !text.trim().is_empty() {
                         match element_stack.last() {
                             Some(el) => {
                                 el.append_text(&mut doc, &text);
