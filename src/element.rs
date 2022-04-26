@@ -4,11 +4,18 @@ use once_cell::sync::Lazy;
 use crate::{
     document::Document,
     key::{CDataSection, Comment, DocKey, Node, Text},
+    select::Selector,
     value::{ElementValue, ItemValue, NodeValue},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Element(pub(crate) DocKey);
+
+impl From<Element> for Node {
+    fn from(n: Element) -> Self {
+        Node::Element(n)
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct NewElement {
@@ -17,6 +24,10 @@ pub struct NewElement {
 }
 
 impl Element {
+    pub fn as_node(&self) -> Node {
+        Node::from(*self)
+    }
+
     pub fn append_new_element(self, document: &mut Document, element: NewElement) -> Element {
         let new_key = document
             .items
@@ -110,6 +121,11 @@ impl Element {
         &element.children
     }
 
+    pub fn name<'d>(&self, document: &'d Document) -> &'d str {
+        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        &element.name
+    }
+
     pub fn attributes<'d>(&self, document: &'d Document) -> &'d IndexMap<String, String> {
         match document.attrs.get(self.0) {
             Some(x) => x,
@@ -140,6 +156,101 @@ impl Element {
         let s = String::from_utf8(s).expect("Invalid string somehow");
         s
     }
+
+    pub fn walk<'d>(&self, doc: &'d Document) -> Box<dyn Iterator<Item = Element> + 'd> {
+        walk_tree(doc, self.clone())
+    }
+
+    pub fn next_sibling_element(&self, doc: &Document) -> Option<Element> {
+        let parent = match self.parent(doc) {
+            Some(v) => v,
+            None => return None,
+        };
+
+        let children = parent.children(doc);
+        let mut index = children
+            .iter()
+            .position(|x| x == &self.as_node())
+            .expect("element has to be child of parent");
+        index += 1;
+
+        while index < children.len() {
+            if let Some(sibling) = children[index].as_element() {
+                return Some(sibling);
+            }
+            index += 1;
+        }
+
+        None
+    }
+
+    pub fn prev_sibling_element(&self, doc: &Document) -> Option<Element> {
+        let parent = match self.parent(doc) {
+            Some(v) => v,
+            None => return None,
+        };
+
+        let children = parent.children(doc);
+        let mut index = children
+            .iter()
+            .position(|x| x == &self.as_node())
+            .expect("element has to be child of parent");
+
+        if index == 0 {
+            return None;
+        }
+
+        loop {
+            index -= 1;
+
+            if let Some(sibling) = children[index].as_element() {
+                return Some(sibling);
+            }
+
+            if index == 0 {
+                return None;
+            }
+        }
+    }
+
+    pub fn query_selector(&self, doc: &Document, selector: &Selector) -> Option<Element> {
+        self.walk(doc).find(|x| selector.matches(doc, *x))
+    }
+
+    pub fn query_selector_all(&self, doc: &Document, selector: &Selector) -> Vec<Element> {
+        self.walk(doc)
+            .filter(|x| selector.matches(doc, *x))
+            .collect()
+    }
+}
+
+fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item = Element> + 'a> {
+    let children = element.children(doc).to_vec();
+    let mut index = 0usize;
+
+    let mut last_child: Option<Box<dyn Iterator<Item = Element>>> = None;
+
+    Box::new(std::iter::from_fn(move || loop {
+        if let Some(iter) = last_child.as_mut() {
+            if let Some(next) = iter.next() {
+                return Some(next);
+            } else {
+                last_child = None;
+            }
+        }
+
+        if index >= children.len() {
+            return None;
+        }
+
+        let child = children[index];
+        index += 1;
+
+        if let Some(child) = child.as_element() {
+            last_child = Some(Box::new(walk_tree(doc, child)));
+            return Some(child);
+        }
+    }))
 }
 
 static EMPTY_INDEXMAP: Lazy<IndexMap<String, String>> = Lazy::new(|| IndexMap::new());
