@@ -11,6 +11,8 @@ pub use key::Node;
 
 #[cfg(test)]
 mod tests {
+    use std::str::FromStr;
+
     use crate::select::Selector;
 
     use super::*;
