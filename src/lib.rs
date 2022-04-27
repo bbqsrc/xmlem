@@ -7,6 +7,7 @@ mod value;
 
 pub use document::Document;
 pub use element::{Element, NewElement};
+pub use select::Selector;
 pub use key::Node;
 
 #[cfg(test)]
