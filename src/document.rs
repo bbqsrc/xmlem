@@ -1,3 +1,5 @@
+use std::io::BufRead;
+
 use indexmap::IndexMap;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
@@ -50,23 +52,28 @@ impl Document {
         }
     }
 
+    #[inline]
     pub fn root(&self) -> Element {
         self.root_key
     }
 
+    #[inline]
     pub fn to_string_pretty(&self) -> String {
         format!("{:#}", self)
     }
-}
 
-impl std::str::FromStr for Document {
-    type Err = quick_xml::Error;
+    #[inline]
+    pub fn from_file(file: std::fs::File) -> Result<Document, quick_xml::Error> {
+        let reader = std::io::BufReader::new(file);
+        Self::from_reader(reader)
+    }
 
-    fn from_str(s: &str) -> Result<Document, quick_xml::Error> {
+    #[inline]
+    pub fn from_reader<R: BufRead>(reader: R) -> Result<Document, quick_xml::Error> {
         use quick_xml::events::Event;
         use quick_xml::Reader;
 
-        let mut r = Reader::from_str(s);
+        let mut r = Reader::from_reader(reader);
         let mut buf = Vec::new();
 
         let mut decl: Option<Declaration> = None;
@@ -270,5 +277,13 @@ impl std::str::FromStr for Document {
         }
 
         Ok(doc)
+    }
+}
+
+impl std::str::FromStr for Document {
+    type Err = quick_xml::Error;
+
+    fn from_str(s: &str) -> Result<Document, quick_xml::Error> {
+        Self::from_reader(std::io::Cursor::new(s))
     }
 }
