@@ -230,8 +230,10 @@ fn process_entities(input: &str) -> Cow<'_, str> {
                 '\'' => "&apos;",
                 '"' => "&quot;",
                 '&' => "&amp;",
-                '<' => "&lt;",
-                '>' => "&gt;",
+                '<' | '>' => {
+                    s.push_str(&format!("&#x{:>04X};", ch as u32));
+                    return;
+                }
                 ch if ch.is_ascii_control() => {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
