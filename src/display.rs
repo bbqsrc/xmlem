@@ -227,10 +227,8 @@ fn process_entities(input: &str) -> Cow<'_, str> {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
             s.push_str(match ch {
-                '\'' => "&apos;",
-                '"' => "&quot;",
                 '&' => "&amp;",
-                '<' | '>' => {
+                '\'' | '"' | '<' | '>' => {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
                 }
