@@ -23,12 +23,30 @@ pub struct NewElement {
     pub attrs: IndexMap<String, String>,
 }
 
+impl<const N: usize, T: ToString, U: ToString, V: ToString> From<(T, [(U, V); N])> for NewElement {
+    fn from(x: (T, [(U, V); N])) -> Self {
+        NewElement {
+            name: x.0.to_string(),
+            attrs: x
+                .1
+                .into_iter()
+                .map(|x| (x.0.to_string(), x.1.to_string()))
+                .collect(),
+        }
+    }
+}
+
 impl Element {
     pub fn as_node(&self) -> Node {
         Node::from(*self)
     }
 
-    pub fn append_new_element(self, document: &mut Document, element: NewElement) -> Element {
+    pub fn append_new_element(
+        self,
+        document: &mut Document,
+        element: impl Into<NewElement>,
+    ) -> Element {
+        let element = element.into();
         let new_key = document
             .items
             .insert(ItemValue::Node(NodeValue::Element(ElementValue {

@@ -158,26 +158,19 @@ mod tests {
                 let children = element.children(&doc).to_vec();
                 for child in children {
                     if let Some(el) = child.as_element() {
-                        let g = el.append_new_element(
-                            &mut doc,
-                            NewElement {
-                                name: "g".to_string(),
-                                attrs: [("class".to_string(), "key-group".to_string())].into(),
-                            },
-                        );
+                        let g = el.append_new_element(&mut doc, ("g", [("class", "key-group")]));
 
                         let primary = g.append_new_element(
                             &mut doc,
-                            NewElement {
-                                name: "text".into(),
-                                attrs: [
-                                    ("dy".to_string(), "1em".to_string()),
-                                    ("y".to_string(), "32".to_string()),
-                                    ("x".to_string(), "32".to_string()),
-                                    ("class".to_string(), "key-text-primary".to_string()),
-                                ]
-                                .into(),
-                            },
+                            (
+                                "text",
+                                [
+                                    ("dy", "1em"),
+                                    ("y", "32"),
+                                    ("x", "32"),
+                                    ("class", "key-text-primary"),
+                                ],
+                            ),
                         );
 
                         primary.append_text(&mut doc, "lol");
