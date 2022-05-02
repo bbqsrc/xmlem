@@ -134,9 +134,18 @@ impl Element {
         document.parents.get(self.0).copied()
     }
 
-    pub fn children(self, document: &Document) -> &[Node] {
+    pub fn child_nodes(self, document: &Document) -> &[Node] {
         let element = document.items.get(self.0).unwrap().as_element().unwrap();
         &element.children
+    }
+
+    pub fn children(self, document: &Document) -> Vec<Element> {
+        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        element
+            .children
+            .iter()
+            .filter_map(|x| x.as_element())
+            .collect()
     }
 
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
@@ -187,15 +196,12 @@ impl Element {
         let children = parent.children(doc);
         let mut index = children
             .iter()
-            .position(|x| x == &self.as_node())
+            .position(|x| x == self)
             .expect("element has to be child of parent");
         index += 1;
 
-        while index < children.len() {
-            if let Some(sibling) = children[index].as_element() {
-                return Some(sibling);
-            }
-            index += 1;
+        if index < children.len() {
+            return Some(children[index]);
         }
 
         None
@@ -210,24 +216,19 @@ impl Element {
         let children = parent.children(doc);
         let mut index = children
             .iter()
-            .position(|x| x == &self.as_node())
+            .position(|x| x == self)
             .expect("element has to be child of parent");
 
         if index == 0 {
             return None;
         }
+        index -= 1;
 
-        loop {
-            index -= 1;
-
-            if let Some(sibling) = children[index].as_element() {
-                return Some(sibling);
-            }
-
-            if index == 0 {
-                return None;
-            }
+        if index == 0 {
+            return None;
         }
+
+        Some(children[index])
     }
 
     pub fn query_selector(&self, doc: &Document, selector: &Selector) -> Option<Element> {
@@ -263,10 +264,8 @@ fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item =
         let child = children[index];
         index += 1;
 
-        if let Some(child) = child.as_element() {
-            last_child = Some(Box::new(walk_tree(doc, child)));
-            return Some(child);
-        }
+        last_child = Some(Box::new(walk_tree(doc, child)));
+        return Some(child);
     }))
 }
 

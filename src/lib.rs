@@ -151,45 +151,41 @@ mod tests {
         let mut doc = Document::from_str(&input).unwrap();
 
         let nodes = doc.root().children(&doc);
-        let g = nodes.last().unwrap().as_element().unwrap();
+        let g = nodes.last().unwrap();
         let nodes = g.children(&doc).to_vec();
-        for node in nodes {
-            if let Some(element) = node.as_element() {
-                let children = element.children(&doc).to_vec();
-                for child in children {
-                    if let Some(el) = child.as_element() {
-                        let g = el.append_new_element(&mut doc, ("g", [("class", "key-group")]));
+        for element in nodes {
+            let children = element.children(&doc).to_vec();
+            for el in children {
+                let g = el.append_new_element(&mut doc, ("g", [("class", "key-group")]));
 
-                        let primary = g.append_new_element(
-                            &mut doc,
-                            (
-                                "text",
-                                [
-                                    ("dy", "1em"),
-                                    ("y", "32"),
-                                    ("x", "32"),
-                                    ("class", "key-text-primary"),
-                                ],
-                            ),
-                        );
+                let primary = g.append_new_element(
+                    &mut doc,
+                    (
+                        "text",
+                        [
+                            ("dy", "1em"),
+                            ("y", "32"),
+                            ("x", "32"),
+                            ("class", "key-text-primary"),
+                        ],
+                    ),
+                );
 
-                        primary.append_text(&mut doc, "lol");
+                primary.append_text(&mut doc, "lol");
 
-                        let secondary = g.append_new_element(
-                            &mut doc,
-                            NewElement {
-                                name: "text".into(),
-                                attrs: [
-                                    ("dy".to_string(), "-.4em".to_string()),
-                                    ("class".to_string(), "key-text-secondary".to_string()),
-                                ]
-                                .into(),
-                            },
-                        );
+                let secondary = g.append_new_element(
+                    &mut doc,
+                    NewElement {
+                        name: "text".into(),
+                        attrs: [
+                            ("dy".to_string(), "-.4em".to_string()),
+                            ("class".to_string(), "key-text-secondary".to_string()),
+                        ]
+                        .into(),
+                    },
+                );
 
-                        secondary.append_text(&mut doc, "LOL");
-                    }
-                }
+                secondary.append_text(&mut doc, "LOL");
             }
         }
 
