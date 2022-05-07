@@ -139,6 +139,24 @@ mod tests {
     }
 
     #[test]
+    fn long_attrs() {
+        let input = r#"<root attribute1="potato potato potato"
+            attribute2="potato potato potato"
+            attribute3="potato potato potato"
+            attribute4="potato potato potato"
+        >
+            <interesting attribute1="potato potato potato" attribute2="potato potato potato"
+            />
+            <another-one/>
+        </root>
+        "#;
+        let doc = Document::from_str(input).unwrap();
+        println!("{:#4.120}", doc);
+        println!("{:#2.60}", doc);
+        println!("{:#1.400}", doc);
+    }
+
+    #[test]
     fn hmm() {
         let input = "<?xml version=\"1.1\" ?>some random text<![CDATA[<hahaha>]]><!DOCTYPE root ahh ahhhh><!-- pre --><root/><!-- comment --> some other text";
         let doc = Document::from_str(input).unwrap();

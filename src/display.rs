@@ -17,15 +17,15 @@ pub(crate) trait Print<Config, Context = ()> {
 }
 
 #[derive(Debug, Clone, Default)]
-pub(crate) struct Config {
+pub struct Config {
     pub is_pretty: bool,
     pub indent: usize,
-    pub max_line_length: u32,
+    pub max_line_length: usize,
     pub entity_mode: EntityMode,
 }
 
 impl Config {
-    pub(crate) fn default_pretty() -> Self {
+    pub fn default_pretty() -> Self {
         Config {
             is_pretty: true,
             indent: 2,
@@ -105,11 +105,22 @@ impl Print<Config, State<'_>> for Declaration {
 
 impl Display for Document {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let config = if f.alternate() {
+        let mut config = if f.alternate() {
             Config::default_pretty()
         } else {
             Config::default()
         };
+
+        if let Some(width) = f.width() {
+            config.is_pretty = true;
+            config.indent = width;
+        }
+
+        if let Some(precision) = f.precision() {
+            config.is_pretty = true;
+            config.max_line_length = precision;
+        }
+
         self.print(&mut FmtWriter(f), &config, &State::new(self))
             .map_err(|_| std::fmt::Error)
     }
@@ -149,17 +160,42 @@ impl Print<Config, State<'_>> for Document {
     }
 }
 
-fn fmt_attrs(f: &mut dyn Write, attrs: &IndexMap<String, String>) -> io::Result<()> {
+fn fmt_attrs(
+    f: &mut dyn Write,
+    tag: &str,
+    config: &Config,
+    context: &State,
+    attrs: &IndexMap<String, String>,
+) -> io::Result<()> {
+    let line_length = tag.len()
+        + 2
+        + attrs
+            .iter()
+            .fold(0usize, |acc, (k, v)| acc + k.len() + v.len() + 4);
+
+    let is_newlines = config.is_pretty && line_length > config.max_line_length;
+    let context = context.with_indent(config);
+
     let mut iter = attrs.iter();
 
     if let Some((k, v)) = iter.next() {
-        write!(f, "{}=\"{}\"", k, process_entities(v, EntityMode::Hex))?;
+        if is_newlines {
+            writeln!(f)?;
+            write!(f, "{:>indent$}", "", indent = context.indent)?;
+        }
+        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode))?;
     } else {
         return Ok(());
     }
 
     for (k, v) in iter {
-        write!(f, " {}=\"{}\"", k, process_entities(v, EntityMode::Hex))?;
+        if is_newlines {
+            writeln!(f)?;
+            write!(f, "{:>indent$}", "", indent = context.indent)?;
+        } else {
+            write!(f, " ")?;
+        }
+        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode))?;
     }
 
     Ok(())
@@ -176,7 +212,7 @@ impl Print<Config, State<'_>> for ElementValue {
             match context.doc.attrs.get(context.key) {
                 Some(attrs) if !attrs.is_empty() => {
                     write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
-                    fmt_attrs(f, attrs)?;
+                    fmt_attrs(f, &self.name, config, context, attrs)?;
                     write!(f, " />")?;
                     if config.is_pretty {
                         writeln!(f)?;
@@ -202,7 +238,7 @@ impl Print<Config, State<'_>> for ElementValue {
         match context.doc.attrs.get(context.key) {
             Some(attrs) if !attrs.is_empty() => {
                 write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
-                fmt_attrs(f, attrs)?;
+                fmt_attrs(f, &self.name, config, context, attrs)?;
                 write!(f, ">")?;
                 if config.is_pretty {
                     writeln!(f)?;

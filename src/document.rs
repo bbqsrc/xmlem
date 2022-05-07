@@ -4,7 +4,7 @@ use indexmap::IndexMap;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
-    display::{Config, Print, State},
+    display::{self, Config, Print, State},
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
     value::{ElementValue, NodeValue},
@@ -61,6 +61,13 @@ impl Document {
         let mut s = vec![];
         self.print(&mut s, &Config::default_pretty(), &State::new(self))
             .unwrap();
+        String::from_utf8(s).expect("invalid UTF-8")
+    }
+
+    #[inline]
+    pub fn to_string_pretty_with_config(&self, config: &display::Config) -> String {
+        let mut s = vec![];
+        self.print(&mut s, &config, &State::new(self)).unwrap();
         String::from_utf8(s).expect("invalid UTF-8")
     }
 
