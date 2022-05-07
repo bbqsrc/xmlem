@@ -112,6 +112,22 @@ mod tests {
     }
 
     #[test]
+    fn smoke4() {
+        let input = "<root>ذ&amp;اكرة USB كبيرة السعة التخزينية (عصا، قرص ذاكرة USB)...</root>";
+        let doc = Document::from_str(input).unwrap();
+
+        println!("{}", doc);
+    }
+
+    #[test]
+    fn smoke5() {
+        let input = "<root>Text text &#x202d;text text &#x202e;text text &#x202d;text text</root>";
+        let doc = Document::from_str(input).unwrap();
+
+        println!("{}", doc);
+    }
+
+    #[test]
     fn keylayout() {
         let input = include_str!("/Users/brendan/Library/Keyboard Layouts/so.brendan.keyboards.keyboardlayout.brendan.bundle/Contents/Resources/enusaltsv.keylayout");
         let doc = Document::from_str(input).unwrap();

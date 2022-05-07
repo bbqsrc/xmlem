@@ -5,6 +5,7 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use unic_ucd::GeneralCategory;
 
 use crate::{
     document::{Declaration, Document},
@@ -318,8 +319,13 @@ impl Default for EntityMode {
 }
 
 fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
-    if input.contains(['<', '>', '\'', '"', '&']) || input.contains(|c: char| c.is_ascii_control())
-    {
+    if input.chars().any(|ch| {
+        if ['<', '>', '\'', '"', '&'].contains(&ch) || ch.is_ascii_control() {
+            return true;
+        }
+        let cat = GeneralCategory::of(ch);
+        ch != ' ' && (cat.is_separator() || cat.is_other())
+    }) {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
             s.push_str(match (mode, ch) {
@@ -337,7 +343,12 @@ fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
                     return;
                 }
                 (_, other) => {
-                    s.push(other);
+                    let cat = GeneralCategory::of(other);
+                    if other != ' ' && (cat.is_separator() || cat.is_other()) {
+                        s.push_str(&format!("&#x{:>04X};", ch as u32));
+                    } else {
+                        s.push(other);
+                    }
                     return;
                 }
             })
