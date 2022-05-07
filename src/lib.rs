@@ -6,10 +6,10 @@ mod qname;
 mod select;
 mod value;
 
-pub use qname::QName;
 pub use document::{Declaration, Document};
 pub use element::{Element, NewElement};
 pub use key::Node;
+pub use qname::QName;
 pub use select::Selector;
 
 #[cfg(test)]

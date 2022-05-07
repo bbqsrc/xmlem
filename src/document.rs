@@ -30,6 +30,24 @@ pub struct Declaration {
     pub standalone: Option<String>,
 }
 
+impl Declaration {
+    pub fn v1_0() -> Self {
+        Self {
+            version: Some("1.0".to_string()),
+            encoding: Some("utf-8".to_string()),
+            standalone: None,
+        }
+    }
+
+    pub fn v1_1() -> Self {
+        Self {
+            version: Some("1.1".to_string()),
+            encoding: Some("utf-8".to_string()),
+            standalone: None,
+        }
+    }
+}
+
 impl Document {
     pub fn new(root_name: &str) -> Self {
         let mut nodes = SlotMap::with_key();
@@ -54,6 +72,49 @@ impl Document {
 
     pub fn set_declaration(&mut self, decl: Option<Declaration>) {
         self.decl = decl;
+    }
+
+    pub fn declaration(&self) -> Option<&Declaration> {
+        self.decl.as_ref()
+    }
+
+    pub fn set_doctype(&mut self, doctype: Option<&str>) {
+        match doctype {
+            Some(v) => {
+                let id = Node::DocumentType(DocumentType(
+                    self.nodes.insert(NodeValue::DocumentType(v.to_string())),
+                ));
+
+                for i in 0..self.before.len() {
+                    if self.before[i].as_document_type().is_some() {
+                        self.nodes.remove(self.before[i].as_key());
+                        self.before[i] = id;
+                        return;
+                    }
+                }
+
+                // If that failed, push it ourselves.
+                self.before.insert(0, id);
+            }
+            None => {
+                for i in 0..self.before.len() {
+                    if self.before[i].as_document_type().is_some() {
+                        self.before.remove(i);
+                        return;
+                    }
+                }
+            }
+        }
+    }
+
+    pub fn doctype(&self) -> Option<&str> {
+        for i in 0..self.before.len() {
+            if let Some(v) = self.before[i].as_document_type() {
+                return Some(self.nodes.get(v.0).unwrap().as_document_type().unwrap());
+            }
+        }
+
+        None
     }
 
     #[inline]
@@ -103,7 +164,9 @@ impl Document {
             match r.read_event(&mut buf) {
                 Ok(Event::DocType(d)) => {
                     before.push(Node::DocumentType(DocumentType(nodes.insert(
-                        NodeValue::DocumentType(d.unescape_and_decode(&r).unwrap()),
+                        NodeValue::DocumentType(
+                            d.unescape_and_decode(&r).unwrap().trim().to_string(),
+                        ),
                     ))));
                 }
                 Ok(Event::Decl(d)) => {

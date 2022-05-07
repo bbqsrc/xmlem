@@ -149,9 +149,7 @@ impl selectors::Element for ElementRef<'_> {
         let attrs = self.element.attributes(self.document);
 
         let qname = match ns {
-            NamespaceConstraint::Any => {
-                QName::new_unchecked(&local_name.0)
-            }
+            NamespaceConstraint::Any => QName::new_unchecked(&local_name.0),
             NamespaceConstraint::Specific(ns) => {
                 QName::new_unchecked(&format!("{}:{}", ns, local_name.0))
             }

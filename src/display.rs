@@ -10,7 +10,8 @@ use unic_ucd::GeneralCategory;
 use crate::{
     document::{Declaration, Document},
     key::DocKey,
-    value::{ElementValue, NodeValue}, qname::QName,
+    qname::QName,
+    value::{ElementValue, NodeValue},
 };
 
 pub(crate) trait Print<Config, Context = ()> {
@@ -170,9 +171,9 @@ fn fmt_attrs(
 ) -> io::Result<()> {
     let line_length = tag.prefixed_name.len()
         + 2
-        + attrs
-            .iter()
-            .fold(0usize, |acc, (k, v)| acc + k.prefixed_name.len() + v.len() + 4);
+        + attrs.iter().fold(0usize, |acc, (k, v)| {
+            acc + k.prefixed_name.len() + v.len() + 4
+        });
 
     let is_newlines = config.is_pretty && line_length > config.max_line_length;
     let context = context.with_indent(config);
@@ -307,7 +308,7 @@ impl Print<Config, State<'_>> for NodeValue {
                 &*process_entities(t, config.entity_mode, true).trim()
             ),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
-            NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
+            NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE {}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
             NodeValue::Element(_) => unreachable!(),
         }?;

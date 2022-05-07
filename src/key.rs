@@ -43,9 +43,44 @@ impl Node {
         }
     }
 
+    pub fn as_text(self) -> Option<Text> {
+        match self {
+            Node::Text(e) => Some(e),
+            _ => None,
+        }
+    }
+
     pub fn as_element(self) -> Option<Element> {
         match self {
             Node::Element(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    pub fn as_document_type(self) -> Option<DocumentType> {
+        match self {
+            Node::DocumentType(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    pub fn as_cdata(self) -> Option<CDataSection> {
+        match self {
+            Node::CDataSection(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    pub fn as_comment(self) -> Option<Comment> {
+        match self {
+            Node::Comment(e) => Some(e),
+            _ => None,
+        }
+    }
+
+    pub fn as_processing_instruction(self) -> Option<ProcessingInstruction> {
+        match self {
+            Node::ProcessingInstruction(e) => Some(e),
             _ => None,
         }
     }

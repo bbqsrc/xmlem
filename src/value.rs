@@ -29,4 +29,11 @@ impl NodeValue {
             _ => None,
         }
     }
+
+    pub fn as_document_type(&self) -> Option<&str> {
+        match self {
+            NodeValue::DocumentType(e) => Some(e),
+            _ => None,
+        }
+    }
 }

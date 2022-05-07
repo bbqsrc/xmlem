@@ -14,15 +14,13 @@ potato.append_new_element(&mut doc, (
     [
         ("easy", "true"),
         ("x", "200"),
+        ("a-null", "\0"),
     ],
 ));
-    
-let decl = Declaration {
-    version: Some("1.1".to_string()),
-    encoding: Some("utf-8".to_string()),
-    standalone: None,
-}
+
+let decl = Declaration::v1_1();
 doc.set_declaration(Some(decl));
+doc.set_doctype(Some("not-html"));
 
 println!("{}", doc.to_string_pretty());
 
@@ -30,9 +28,10 @@ println!("{}", doc.to_string_pretty());
 Prints:
 
 <?xml version="1.1" encoding="utf-8" ?>
+<!DOCTYPE not-html>
 <root>
   <potato>
-    <wow easy="true" x="200" />
+    <wow easy="true" x="200" a-null="&#x0000;" />
   </potato>
 </root>
 */
