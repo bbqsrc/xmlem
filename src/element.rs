@@ -5,6 +5,7 @@ use crate::{
     display::{self, Print},
     document::Document,
     key::{CDataSection, Comment, DocKey, Node, Text},
+    qname::QName,
     select::Selector,
     value::{ElementValue, NodeValue},
 };
@@ -20,18 +21,18 @@ impl From<Element> for Node {
 
 #[derive(Debug, Clone)]
 pub struct NewElement {
-    pub name: String,
-    pub attrs: IndexMap<String, String>,
+    pub name: QName,
+    pub attrs: IndexMap<QName, String>,
 }
 
 impl<const N: usize, T: ToString, U: ToString, V: ToString> From<(T, [(U, V); N])> for NewElement {
     fn from(x: (T, [(U, V); N])) -> Self {
         NewElement {
-            name: x.0.to_string(),
+            name: x.0.to_string().parse().unwrap(),
             attrs: x
                 .1
                 .into_iter()
-                .map(|x| (x.0.to_string(), x.1.to_string()))
+                .map(|x| (x.0.to_string().parse().unwrap(), x.1.to_string()))
                 .collect(),
         }
     }
@@ -143,10 +144,15 @@ impl Element {
 
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        &element.name
+        &element.name.prefixed_name
     }
 
-    pub fn attributes<'d>(&self, document: &'d Document) -> &'d IndexMap<String, String> {
+    pub fn prefix<'d>(&self, document: &'d Document) -> Option<&'d str> {
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
+        element.name.namespace.as_deref()
+    }
+
+    pub fn attributes<'d>(&self, document: &'d Document) -> &'d IndexMap<QName, String> {
         match document.attrs.get(self.0) {
             Some(x) => x,
             None => &EMPTY_INDEXMAP,
@@ -155,7 +161,8 @@ impl Element {
 
     pub fn attribute<'d>(&self, document: &'d Document, name: &str) -> Option<&'d str> {
         let attrs = self.attributes(document);
-        attrs.get(name).map(|x| &**x)
+
+        attrs.get(&name.parse::<QName>().unwrap()).map(|x| &**x)
     }
 
     pub fn set_attribute(&self, document: &mut Document, name: &str, value: &str) {
@@ -164,7 +171,7 @@ impl Element {
         }
 
         let attrs = document.attrs.get_mut(self.0).unwrap();
-        attrs.insert(name.into(), value.into());
+        attrs.insert(name.parse().unwrap(), value.into());
     }
 
     pub fn display(&self, document: &Document) -> String {
@@ -266,4 +273,4 @@ fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item =
     }))
 }
 
-static EMPTY_INDEXMAP: Lazy<IndexMap<String, String>> = Lazy::new(IndexMap::new);
+static EMPTY_INDEXMAP: Lazy<IndexMap<QName, String>> = Lazy::new(IndexMap::new);

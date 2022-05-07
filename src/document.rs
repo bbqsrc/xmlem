@@ -7,6 +7,7 @@ use crate::{
     display::{self, Config, Print, State},
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
+    qname::QName,
     value::{ElementValue, NodeValue},
     Node,
 };
@@ -15,7 +16,7 @@ use crate::{
 pub struct Document {
     pub(crate) nodes: SlotMap<DocKey, NodeValue>,
     pub(crate) parents: SparseSecondaryMap<DocKey, Element>,
-    pub(crate) attrs: SparseSecondaryMap<DocKey, IndexMap<String, String>>,
+    pub(crate) attrs: SparseSecondaryMap<DocKey, IndexMap<QName, String>>,
     pub(crate) root_key: Element,
     pub(crate) before: Vec<Node>,
     pub(crate) after: Vec<Node>,
@@ -36,7 +37,7 @@ impl Document {
         let attrs = SparseSecondaryMap::new();
 
         let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
-            name: root_name.into(),
+            name: root_name.parse().unwrap(),
             children: vec![],
         })));
 
@@ -126,7 +127,7 @@ impl Document {
                     });
                 }
                 Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
-                    let name = std::str::from_utf8(e.name()).unwrap().to_string();
+                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
 
                     let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
                         name,
@@ -192,34 +193,40 @@ impl Document {
         loop {
             match r.read_event(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    let name = std::str::from_utf8(e.name()).unwrap().to_string();
+                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(name));
+                            return Err(quick_xml::Error::UnexpectedToken(name.prefixed_name));
                         }
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_and_decode_value(&r)?;
-                        attrs.insert(std::str::from_utf8(attr.key).unwrap().to_string(), value);
+                        attrs.insert(
+                            std::str::from_utf8(attr.key).unwrap().parse().unwrap(),
+                            value,
+                        );
                     }
                     let element =
                         parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
                     element_stack.push(element);
                 }
                 Ok(Event::Empty(e)) => {
-                    let name = std::str::from_utf8(e.name()).unwrap().to_string();
+                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(name));
+                            return Err(quick_xml::Error::UnexpectedToken(name.prefixed_name));
                         }
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_and_decode_value(&r)?;
-                        attrs.insert(std::str::from_utf8(attr.key).unwrap().to_string(), value);
+                        attrs.insert(
+                            std::str::from_utf8(attr.key).unwrap().parse().unwrap(),
+                            value,
+                        );
                     }
                     parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
                 }

@@ -1,4 +1,4 @@
-use crate::key::Node;
+use crate::{key::Node, qname::QName};
 
 #[derive(Debug, Clone)]
 pub(crate) enum NodeValue {
@@ -11,7 +11,7 @@ pub(crate) enum NodeValue {
 
 #[derive(Debug, Clone)]
 pub struct ElementValue {
-    pub(crate) name: String,
+    pub(crate) name: QName,
     pub(crate) children: Vec<Node>,
 }
 

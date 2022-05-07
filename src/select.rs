@@ -9,6 +9,7 @@ use selectors::parser::{
 use selectors::parser::{PseudoElement, SelectorParseErrorKind};
 use selectors::{self, matching, OpaqueElement};
 
+use crate::qname::QName;
 use crate::{Document, Element};
 
 #[derive(Debug, Clone)]
@@ -131,8 +132,8 @@ impl selectors::Element for ElementRef<'_> {
         self.element.name(self.document) == local_name
     }
 
-    fn has_namespace(&self, _ns: &<Self::Impl as SelectorImpl>::BorrowedNamespaceUrl) -> bool {
-        false
+    fn has_namespace(&self, ns: &<Self::Impl as SelectorImpl>::BorrowedNamespaceUrl) -> bool {
+        self.element.prefix(self.document) == Some(ns)
     }
 
     fn is_same_type(&self, other: &Self) -> bool {
@@ -141,13 +142,22 @@ impl selectors::Element for ElementRef<'_> {
 
     fn attr_matches(
         &self,
-        _ns: &NamespaceConstraint<&<Self::Impl as SelectorImpl>::NamespaceUrl>,
+        ns: &NamespaceConstraint<&<Self::Impl as SelectorImpl>::NamespaceUrl>,
         local_name: &<Self::Impl as SelectorImpl>::LocalName,
         operation: &AttrSelectorOperation<&<Self::Impl as SelectorImpl>::AttrValue>,
     ) -> bool {
         let attrs = self.element.attributes(self.document);
 
-        if let Some(val) = attrs.get(&local_name.0) {
+        let qname = match ns {
+            NamespaceConstraint::Any => {
+                QName::new_unchecked(&local_name.0)
+            }
+            NamespaceConstraint::Specific(ns) => {
+                QName::new_unchecked(&format!("{}:{}", ns, local_name.0))
+            }
+        };
+
+        if let Some(val) = attrs.get(&qname) {
             operation.eval_str(val)
         } else {
             false

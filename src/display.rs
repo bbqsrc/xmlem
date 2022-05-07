@@ -10,7 +10,7 @@ use unic_ucd::GeneralCategory;
 use crate::{
     document::{Declaration, Document},
     key::DocKey,
-    value::{ElementValue, NodeValue},
+    value::{ElementValue, NodeValue}, qname::QName,
 };
 
 pub(crate) trait Print<Config, Context = ()> {
@@ -163,16 +163,16 @@ impl Print<Config, State<'_>> for Document {
 
 fn fmt_attrs(
     f: &mut dyn Write,
-    tag: &str,
+    tag: &QName,
     config: &Config,
     context: &State,
-    attrs: &IndexMap<String, String>,
+    attrs: &IndexMap<QName, String>,
 ) -> io::Result<()> {
-    let line_length = tag.len()
+    let line_length = tag.prefixed_name.len()
         + 2
         + attrs
             .iter()
-            .fold(0usize, |acc, (k, v)| acc + k.len() + v.len() + 4);
+            .fold(0usize, |acc, (k, v)| acc + k.prefixed_name.len() + v.len() + 4);
 
     let is_newlines = config.is_pretty && line_length > config.max_line_length;
     let context = context.with_indent(config);
@@ -184,7 +184,12 @@ fn fmt_attrs(
             writeln!(f)?;
             write!(f, "{:>indent$}", "", indent = context.indent)?;
         }
-        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode, false))?;
+        write!(
+            f,
+            "{}=\"{}\"",
+            k,
+            process_entities(v, config.entity_mode, false)
+        )?;
     } else {
         return Ok(());
     }
@@ -196,7 +201,12 @@ fn fmt_attrs(
         } else {
             write!(f, " ")?;
         }
-        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode, false))?;
+        write!(
+            f,
+            "{}=\"{}\"",
+            k,
+            process_entities(v, config.entity_mode, false)
+        )?;
     }
 
     Ok(())
@@ -291,7 +301,11 @@ impl Print<Config, State<'_>> for NodeValue {
         }
 
         match self {
-            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, config.entity_mode, true).trim()),
+            NodeValue::Text(t) => write!(
+                f,
+                "{}",
+                &*process_entities(t, config.entity_mode, true).trim()
+            ),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
@@ -345,7 +359,8 @@ fn process_entities(input: &str, mode: EntityMode, allow_separators: bool) -> Co
                 (_, other) => {
                     let cat = GeneralCategory::of(other);
 
-                    let is_ws = allow_separators && (other.is_ascii_whitespace() || cat.is_separator());
+                    let is_ws =
+                        allow_separators && (other.is_ascii_whitespace() || cat.is_separator());
                     let is_printable = !(cat.is_separator() || cat.is_other());
 
                     if is_ws || is_printable {

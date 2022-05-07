@@ -2,10 +2,12 @@ pub mod display;
 mod document;
 mod element;
 mod key;
+mod qname;
 mod select;
 mod value;
 
-pub use document::{Document, Declaration};
+pub use qname::QName;
+pub use document::{Declaration, Document};
 pub use element::{Element, NewElement};
 pub use key::Node;
 pub use select::Selector;
@@ -29,53 +31,53 @@ mod tests {
         let new_el = doc.root().append_new_element(
             &mut doc,
             NewElement {
-                name: "child".into(),
+                name: "child".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
         new_el.append_new_element(
             &mut doc,
             NewElement {
-                name: "child2".into(),
+                name: "child2".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
         let mut attrs = IndexMap::new();
-        attrs.insert("hello".into(), "yes".into());
-        attrs.insert("another-thing".into(), "yes".into());
+        attrs.insert("hello".parse().unwrap(), "yes".into());
+        attrs.insert("another-thing".parse().unwrap(), "yes".into());
 
         let foo = new_el.append_new_element(
             &mut doc,
             NewElement {
-                name: "with-child2".into(),
+                name: "with-child2".parse().unwrap(),
                 attrs,
             },
         );
         foo.append_new_element(
             &mut doc,
             NewElement {
-                name: "child3".into(),
+                name: "child3".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
         foo.append_new_element(
             &mut doc,
             NewElement {
-                name: "child3".into(),
+                name: "child3".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
         foo.append_new_element(
             &mut doc,
             NewElement {
-                name: "child3".into(),
+                name: "child3".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
         new_el.append_new_element(
             &mut doc,
             NewElement {
-                name: "child2".into(),
+                name: "child2".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
@@ -83,7 +85,7 @@ mod tests {
         let _potato = doc.root().append_new_element(
             &mut doc,
             NewElement {
-                name: "potato".into(),
+                name: "potato".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
@@ -148,7 +150,7 @@ mod tests {
         root.append_new_element(
             &mut doc2,
             NewElement {
-                name: "lol".to_string(),
+                name: "lol".parse().unwrap(),
                 attrs: Default::default(),
             },
         );
@@ -213,10 +215,10 @@ mod tests {
                 let secondary = g.append_new_element(
                     &mut doc,
                     NewElement {
-                        name: "text".into(),
+                        name: "text".parse().unwrap(),
                         attrs: [
-                            ("dy".to_string(), "-.4em".to_string()),
-                            ("class".to_string(), "key-text-secondary".to_string()),
+                            ("dy".parse().unwrap(), "-.4em".to_string()),
+                            ("class".parse().unwrap(), "key-text-secondary".to_string()),
                         ]
                         .into(),
                     },
