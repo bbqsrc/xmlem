@@ -121,7 +121,10 @@ mod tests {
 
     #[test]
     fn smoke5() {
-        let input = "<root>Text text &#x202d;text text &#x202e;text text &#x202d;text text</root>";
+        let input = "<root>
+            Text text &#x202d;text text
+            &#x202e;text text &#x202d;text text
+        </root>";
         let doc = Document::from_str(input).unwrap();
 
         println!("{}", doc);

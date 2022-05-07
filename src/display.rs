@@ -184,7 +184,7 @@ fn fmt_attrs(
             writeln!(f)?;
             write!(f, "{:>indent$}", "", indent = context.indent)?;
         }
-        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode))?;
+        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode, false))?;
     } else {
         return Ok(());
     }
@@ -196,7 +196,7 @@ fn fmt_attrs(
         } else {
             write!(f, " ")?;
         }
-        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode))?;
+        write!(f, "{}=\"{}\"", k, process_entities(v, config.entity_mode, false))?;
     }
 
     Ok(())
@@ -291,7 +291,7 @@ impl Print<Config, State<'_>> for NodeValue {
         }
 
         match self {
-            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, config.entity_mode).trim()),
+            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, config.entity_mode, true).trim()),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
@@ -318,13 +318,13 @@ impl Default for EntityMode {
     }
 }
 
-fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
+fn process_entities(input: &str, mode: EntityMode, allow_separators: bool) -> Cow<'_, str> {
     if input.chars().any(|ch| {
         if ['<', '>', '\'', '"', '&'].contains(&ch) || ch.is_ascii_control() {
             return true;
         }
         let cat = GeneralCategory::of(ch);
-        ch != ' ' && (cat.is_separator() || cat.is_other())
+        cat.is_separator() || cat.is_other()
     }) {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
@@ -338,16 +338,20 @@ fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
                 }
-                (_, ch) if ch.is_ascii_control() => {
+                (_, ch) if !ch.is_ascii_whitespace() && ch.is_ascii_control() => {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
                 }
                 (_, other) => {
                     let cat = GeneralCategory::of(other);
-                    if other != ' ' && (cat.is_separator() || cat.is_other()) {
-                        s.push_str(&format!("&#x{:>04X};", ch as u32));
-                    } else {
+
+                    let is_ws = allow_separators && (other.is_ascii_whitespace() || cat.is_separator());
+                    let is_printable = !(cat.is_separator() || cat.is_other());
+
+                    if is_ws || is_printable {
                         s.push(other);
+                    } else {
+                        s.push_str(&format!("&#x{:>04X};", ch as u32));
                     }
                     return;
                 }
