@@ -2,6 +2,7 @@ use indexmap::IndexMap;
 use once_cell::sync::Lazy;
 
 use crate::{
+    display::{self, Print},
     document::Document,
     key::{CDataSection, Comment, DocKey, Node, Text},
     select::Selector,
@@ -170,9 +171,13 @@ impl Element {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         let mut s = Vec::<u8>::new();
         element
-            .display(document, self.0, &mut s, 0, false)
+            .print(
+                &mut s,
+                &display::Config::default_pretty(),
+                &display::State::new(document),
+            )
             .expect("Invalid string somehow");
-        String::from_utf8(s).expect("Invalid string somehow")
+        String::from_utf8(s).expect("Invalid UTF-8")
     }
 
     pub fn walk<'d>(&self, doc: &'d Document) -> Box<dyn Iterator<Item = Element> + 'd> {

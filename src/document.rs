@@ -4,6 +4,7 @@ use indexmap::IndexMap;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
+    display::{Config, Print, State},
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
     value::{ElementValue, NodeValue},
@@ -57,7 +58,10 @@ impl Document {
 
     #[inline]
     pub fn to_string_pretty(&self) -> String {
-        format!("{:#}", self)
+        let mut s = vec![];
+        self.print(&mut s, &Config::default_pretty(), &State::new(self))
+            .unwrap();
+        String::from_utf8(s).expect("invalid UTF-8")
     }
 
     #[inline]
@@ -262,8 +266,9 @@ impl Document {
                     continue;
                 }
                 Ok(Event::Eof) => {
+                    // exits the loop when reaching end of file
                     break;
-                } // exits the loop when reaching end of file
+                }
                 Err(e) => {
                     return Err(e);
                 }

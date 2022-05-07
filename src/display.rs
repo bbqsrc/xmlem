@@ -9,12 +9,77 @@ use indexmap::IndexMap;
 use crate::{
     document::{Declaration, Document},
     key::DocKey,
-    value::{ElementValue, ItemValue, NodeValue},
+    value::{ElementValue, NodeValue},
 };
 
-impl Display for Declaration {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.write_str("<?xml ")?;
+pub(crate) trait Print<Config, Context = ()> {
+    fn print(&self, f: &mut dyn Write, config: &Config, context: &Context) -> std::io::Result<()>;
+}
+
+#[derive(Debug, Clone, Default)]
+pub(crate) struct Config {
+    pub is_pretty: bool,
+    pub indent: usize,
+    pub max_line_length: u32,
+    pub entity_mode: EntityMode,
+}
+
+impl Config {
+    pub(crate) fn default_pretty() -> Self {
+        Config {
+            is_pretty: true,
+            indent: 2,
+            max_line_length: 120,
+            entity_mode: EntityMode::Standard,
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
+pub(crate) struct State<'a> {
+    pub indent: usize,
+    pub key: DocKey,
+    pub doc: &'a Document,
+}
+
+impl<'a> State<'a> {
+    pub(crate) fn new(document: &'a Document) -> Self {
+        Self {
+            indent: 0,
+            doc: document,
+            key: document.root_key.0,
+        }
+    }
+
+    fn with_indent(&self, config: &Config) -> Self {
+        if !config.is_pretty {
+            return self.clone();
+        }
+
+        State {
+            indent: self.indent + config.indent,
+            key: self.key,
+            doc: self.doc,
+        }
+    }
+
+    fn with_key(&self, key: DocKey) -> Self {
+        State {
+            indent: self.indent,
+            key,
+            doc: self.doc,
+        }
+    }
+}
+
+impl Print<Config, State<'_>> for Declaration {
+    fn print(
+        &self,
+        f: &mut dyn Write,
+        config: &Config,
+        _context: &State<'_>,
+    ) -> std::io::Result<()> {
+        write!(f, "<?xml ")?;
 
         if let Some(version) = self.version.as_deref() {
             write!(f, "version=\"{}\" ", version)?;
@@ -28,10 +93,10 @@ impl Display for Declaration {
             write!(f, "standalone=\"{}\" ", standalone)?;
         }
 
-        f.write_str("?>")?;
+        write!(f, "?>")?;
 
-        if f.alternate() {
-            f.write_str("\n")?;
+        if config.is_pretty {
+            writeln!(f)?;
         }
 
         Ok(())
@@ -40,33 +105,44 @@ impl Display for Declaration {
 
 impl Display for Document {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let config = if f.alternate() {
+            Config::default_pretty()
+        } else {
+            Config::default()
+        };
+        self.print(&mut FmtWriter(f), &config, &State::new(self))
+            .map_err(|_| std::fmt::Error)
+    }
+}
+
+impl Print<Config, State<'_>> for Document {
+    fn print(
+        &self,
+        f: &mut dyn Write,
+        config: &Config,
+        context: &State<'_>,
+    ) -> std::io::Result<()> {
         if let Some(decl) = self.decl.as_ref() {
-            Display::fmt(&decl, f)?;
+            Print::print(decl, f, &config, &context)?;
         }
 
         for node in self.before.iter() {
-            let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
-            node_value
-                .display_fmt(self, node.as_key(), f, 0)
-                .map_err(|_| std::fmt::Error)?;
+            let node_value = self.nodes.get(node.as_key()).unwrap();
+            node_value.print(f, config, &context.with_key(node.as_key()))?;
         }
 
         let element = self
-            .items
+            .nodes
             .get(self.root_key.0)
             .unwrap()
             .as_element()
             .unwrap();
 
-        element
-            .display_fmt(self, self.root_key.0, f, 0)
-            .map_err(|_e| std::fmt::Error)?;
+        element.print(f, config, &context.with_key(self.root_key.0))?;
 
         for node in self.after.iter() {
-            let node_value = self.items.get(node.as_key()).unwrap().as_node().unwrap();
-            node_value
-                .display_fmt(self, node.as_key(), f, 0)
-                .map_err(|_e| std::fmt::Error)?;
+            let node_value = self.nodes.get(node.as_key()).unwrap();
+            node_value.print(f, config, &context.with_key(node.as_key()))?;
         }
 
         Ok(())
@@ -89,29 +165,33 @@ fn fmt_attrs(f: &mut dyn Write, attrs: &IndexMap<String, String>) -> io::Result<
     Ok(())
 }
 
-impl ElementValue {
-    pub(crate) fn display(
+impl Print<Config, State<'_>> for ElementValue {
+    fn print(
         &self,
-        doc: &Document,
-        k: DocKey,
         f: &mut dyn Write,
-        indent: usize,
-        alternate: bool,
-    ) -> io::Result<()> {
+        config: &Config,
+        context: &State<'_>,
+    ) -> std::io::Result<()> {
         if self.children.is_empty() {
-            match doc.attrs.get(k) {
+            match context.doc.attrs.get(context.key) {
                 Some(attrs) if !attrs.is_empty() => {
-                    write!(f, "{:>indent$}<{} ", "", self.name, indent = indent)?;
+                    write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
                     fmt_attrs(f, attrs)?;
                     write!(f, " />")?;
-                    if alternate {
+                    if config.is_pretty {
                         writeln!(f)?;
                     }
                     return Ok(());
                 }
                 _ => {
-                    write!(f, "{:>indent$}<{} />", "", self.name, indent = indent)?;
-                    if alternate {
+                    write!(
+                        f,
+                        "{:>indent$}<{} />",
+                        "",
+                        self.name,
+                        indent = context.indent
+                    )?;
+                    if config.is_pretty {
                         writeln!(f)?;
                     }
                     return Ok(());
@@ -119,105 +199,73 @@ impl ElementValue {
             }
         }
 
-        match doc.attrs.get(k) {
+        match context.doc.attrs.get(context.key) {
             Some(attrs) if !attrs.is_empty() => {
-                write!(f, "{:>indent$}<{} ", "", self.name, indent = indent)?;
+                write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
                 fmt_attrs(f, attrs)?;
                 write!(f, ">")?;
-                if alternate {
+                if config.is_pretty {
                     writeln!(f)?;
                 }
             }
             _ => {
-                write!(f, "{:>indent$}<{}>", "", self.name, indent = indent)?;
-                if alternate {
+                write!(f, "{:>indent$}<{}>", "", self.name, indent = context.indent)?;
+                if config.is_pretty {
                     writeln!(f)?;
                 }
             }
         }
 
-        let child_indent = if alternate { indent + 2 } else { 0 };
-        for child in self.children.iter() {
-            let value = doc.items.get(child.as_key()).unwrap();
-            value.display(doc, child.as_key(), f, child_indent, alternate)?;
-        }
-        write!(f, "{:>indent$}</{}>", "", self.name, indent = indent)?;
+        let child_context = context.with_indent(config);
 
-        if alternate {
+        for child in self.children.iter() {
+            let value = context.doc.nodes.get(child.as_key()).unwrap();
+            value.print(f, config, &child_context.with_key(child.as_key()))?;
+        }
+        write!(
+            f,
+            "{:>indent$}</{}>",
+            "",
+            self.name,
+            indent = context.indent
+        )?;
+
+        if config.is_pretty {
             writeln!(f)?;
         }
 
         Ok(())
     }
-
-    pub(crate) fn display_fmt(
-        &self,
-        doc: &Document,
-        k: DocKey,
-        f: &mut std::fmt::Formatter<'_>,
-        indent: usize,
-    ) -> io::Result<()> {
-        let alternate = f.alternate();
-        self.display(doc, k, &mut FmtWriter(f), indent, alternate)
-    }
 }
 
-impl ItemValue {
-    fn display(
+impl Print<Config, State<'_>> for NodeValue {
+    fn print(
         &self,
-        doc: &Document,
-        k: DocKey,
         f: &mut dyn Write,
-        indent: usize,
-        alternate: bool,
-    ) -> io::Result<()> {
-        match self {
-            ItemValue::Node(n) => n.display(doc, k, f, indent, alternate),
-        }
-    }
-}
-
-impl NodeValue {
-    pub(crate) fn display(
-        &self,
-        doc: &Document,
-        k: DocKey,
-        f: &mut dyn Write,
-        indent: usize,
-        alternate: bool,
-    ) -> io::Result<()> {
+        config: &Config,
+        context: &State<'_>,
+    ) -> std::io::Result<()> {
         if let NodeValue::Element(e) = self {
-            return e.display(doc, k, f, indent, alternate);
+            return e.print(f, config, context);
         }
 
-        if alternate {
-            write!(f, "{:>indent$}", "", indent = indent)?;
+        if config.is_pretty {
+            write!(f, "{:>indent$}", "", indent = context.indent)?;
         }
 
         match self {
-            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, EntityMode::Hex).trim()),
+            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, config.entity_mode).trim()),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
             NodeValue::Element(_) => unreachable!(),
         }?;
 
-        if alternate {
+        if config.is_pretty {
             writeln!(f)?;
         }
 
         Ok(())
-    }
-
-    fn display_fmt(
-        &self,
-        doc: &Document,
-        k: DocKey,
-        f: &mut std::fmt::Formatter<'_>,
-        indent: usize,
-    ) -> io::Result<()> {
-        let alternate = f.alternate();
-        self.display(doc, k, &mut FmtWriter(f), indent, alternate)
     }
 }
 
@@ -225,6 +273,12 @@ impl NodeValue {
 pub enum EntityMode {
     Standard,
     Hex,
+}
+
+impl Default for EntityMode {
+    fn default() -> Self {
+        Self::Standard
+    }
 }
 
 fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
