@@ -40,6 +40,11 @@ Prints:
 
 You can run this example with `cargo run --example readme`, and see the `examples/readme.rs` file.
 
+## Projects using xmlem
+
+- [kbdgen](https://github.com/divvun/kbdgen): a keyboard layout generation tool used by minority and indigenous language communities
+- [xml-pretty](https://github.com/bbqsrc/xml-pretty): a command line XML prettifier
+
 ## License
 
 This project is licensed under either of
