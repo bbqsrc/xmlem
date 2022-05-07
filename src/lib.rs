@@ -1,4 +1,4 @@
-mod display;
+pub mod display;
 mod document;
 mod element;
 mod key;
