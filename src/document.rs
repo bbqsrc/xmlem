@@ -51,6 +51,10 @@ impl Document {
         }
     }
 
+    pub fn set_declaration(&mut self, decl: Option<Declaration>) {
+        self.decl = decl;
+    }
+
     #[inline]
     pub fn root(&self) -> Element {
         self.root_key

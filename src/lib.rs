@@ -5,7 +5,7 @@ mod key;
 mod select;
 mod value;
 
-pub use document::Document;
+pub use document::{Document, Declaration};
 pub use element::{Element, NewElement};
 pub use key::Node;
 pub use select::Selector;
