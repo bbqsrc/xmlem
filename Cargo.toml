@@ -2,12 +2,12 @@
 name = "xmlem"
 description = "XML DOM implementation with pretty printing"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/bbqsrc/xmlem"
-categories = ["encoding", "data-structures"]
-tags = ["xml", "dom", "mlem", "css"]
+categories = ["command-line-utilities", "encoding"]
+keywords = ["xml", "dom", "mlem", "css"]
 
 [dependencies]
 cssparser = "0.28.1"
@@ -17,4 +17,4 @@ quick-xml = "0.22.0"
 selectors = "0.23.0"
 slotmap = "1.0.6"
 unic-ucd = "0.9.0"
-url = "2.2.2"
+# url = "2.2.2"
