@@ -77,13 +77,13 @@ fn fmt_attrs(f: &mut dyn Write, attrs: &IndexMap<String, String>) -> io::Result<
     let mut iter = attrs.iter();
 
     if let Some((k, v)) = iter.next() {
-        write!(f, "{}=\"{}\"", k, process_entities(v))?;
+        write!(f, "{}=\"{}\"", k, process_entities(v, EntityMode::Hex))?;
     } else {
         return Ok(());
     }
 
     for (k, v) in iter {
-        write!(f, " {}=\"{}\"", k, process_entities(v))?;
+        write!(f, " {}=\"{}\"", k, process_entities(v, EntityMode::Hex))?;
     }
 
     Ok(())
@@ -195,7 +195,7 @@ impl NodeValue {
         }
 
         match self {
-            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t).trim()),
+            NodeValue::Text(t) => write!(f, "{}", &*process_entities(t, EntityMode::Hex).trim()),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE{}>", t),
             NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
@@ -221,22 +221,32 @@ impl NodeValue {
     }
 }
 
-fn process_entities(input: &str) -> Cow<'_, str> {
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum EntityMode {
+    Standard,
+    Hex,
+}
+
+fn process_entities(input: &str, mode: EntityMode) -> Cow<'_, str> {
     if input.contains(['<', '>', '\'', '"', '&']) || input.contains(|c: char| c.is_ascii_control())
     {
         let mut s = String::with_capacity(input.len());
         input.chars().for_each(|ch| {
-            s.push_str(match ch {
-                '&' => "&amp;",
-                '\'' | '"' | '<' | '>' => {
+            s.push_str(match (mode, ch) {
+                (EntityMode::Standard, '&') => "&amp;",
+                (EntityMode::Standard, '\'') => "&apos;",
+                (EntityMode::Standard, '"') => "&quot;",
+                (EntityMode::Standard, '<') => "&lt;",
+                (EntityMode::Standard, '>') => "&gt;",
+                (EntityMode::Hex, '&' | '\'' | '"' | '<' | '>') => {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
                 }
-                ch if ch.is_ascii_control() => {
+                (_, ch) if ch.is_ascii_control() => {
                     s.push_str(&format!("&#x{:>04X};", ch as u32));
                     return;
                 }
-                other => {
+                (_, other) => {
                     s.push(other);
                     return;
                 }
