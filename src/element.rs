@@ -5,7 +5,7 @@ use crate::{
     document::Document,
     key::{CDataSection, Comment, DocKey, Node, Text},
     select::Selector,
-    value::{ElementValue, ItemValue, NodeValue},
+    value::{ElementValue, NodeValue},
 };
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
@@ -47,16 +47,14 @@ impl Element {
         element: impl Into<NewElement>,
     ) -> Element {
         let element = element.into();
-        let new_key = document
-            .items
-            .insert(ItemValue::Node(NodeValue::Element(ElementValue {
-                name: element.name,
-                children: vec![],
-            })));
+        let new_key = document.nodes.insert(NodeValue::Element(ElementValue {
+            name: element.name,
+            children: vec![],
+        }));
         document.attrs.insert(new_key, element.attrs);
         document.parents.insert(new_key, self);
         document
-            .items
+            .nodes
             .get_mut(self.0)
             .unwrap()
             .as_element_mut()
@@ -67,12 +65,10 @@ impl Element {
     }
 
     pub fn append_text(self, document: &mut Document, text: &str) -> Text {
-        let new_key = document
-            .items
-            .insert(ItemValue::Node(NodeValue::Text(text.to_string())));
+        let new_key = document.nodes.insert(NodeValue::Text(text.to_string()));
         document.parents.insert(new_key, self);
         document
-            .items
+            .nodes
             .get_mut(self.0)
             .unwrap()
             .as_element_mut()
@@ -83,12 +79,10 @@ impl Element {
     }
 
     pub fn append_cdata(self, document: &mut Document, text: &str) -> CDataSection {
-        let new_key = document
-            .items
-            .insert(ItemValue::Node(NodeValue::CData(text.to_string())));
+        let new_key = document.nodes.insert(NodeValue::CData(text.to_string()));
         document.parents.insert(new_key, self);
         document
-            .items
+            .nodes
             .get_mut(self.0)
             .unwrap()
             .as_element_mut()
@@ -99,12 +93,10 @@ impl Element {
     }
 
     pub fn append_comment(self, document: &mut Document, text: &str) -> Comment {
-        let new_key = document
-            .items
-            .insert(ItemValue::Node(NodeValue::Comment(text.to_string())));
+        let new_key = document.nodes.insert(NodeValue::Comment(text.to_string()));
         document.parents.insert(new_key, self);
         document
-            .items
+            .nodes
             .get_mut(self.0)
             .unwrap()
             .as_element_mut()
@@ -116,7 +108,7 @@ impl Element {
 
     pub fn remove_child(self, document: &mut Document, node: Node) {
         let element = document
-            .items
+            .nodes
             .get_mut(self.0)
             .unwrap()
             .as_element_mut()
@@ -127,7 +119,7 @@ impl Element {
             }
             None => return,
         }
-        document.items.remove(node.as_key());
+        document.nodes.remove(node.as_key());
     }
 
     pub fn parent(self, document: &Document) -> Option<Element> {
@@ -135,12 +127,12 @@ impl Element {
     }
 
     pub fn child_nodes(self, document: &Document) -> &[Node] {
-        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         &element.children
     }
 
     pub fn children(self, document: &Document) -> Vec<Element> {
-        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         element
             .children
             .iter()
@@ -149,7 +141,7 @@ impl Element {
     }
 
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
-        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         &element.name
     }
 
@@ -175,7 +167,7 @@ impl Element {
     }
 
     pub fn display(&self, document: &Document) -> String {
-        let element = document.items.get(self.0).unwrap().as_element().unwrap();
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         let mut s = Vec::<u8>::new();
         element
             .display(document, self.0, &mut s, 0, false)

@@ -6,13 +6,13 @@ use slotmap::{SlotMap, SparseSecondaryMap};
 use crate::{
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
-    value::{ElementValue, ItemValue, NodeValue},
+    value::{ElementValue, NodeValue},
     Node,
 };
 
 #[derive(Debug, Clone)]
 pub struct Document {
-    pub(crate) items: SlotMap<DocKey, ItemValue>,
+    pub(crate) nodes: SlotMap<DocKey, NodeValue>,
     pub(crate) parents: SparseSecondaryMap<DocKey, Element>,
     pub(crate) attrs: SparseSecondaryMap<DocKey, IndexMap<String, String>>,
     pub(crate) root_key: Element,
@@ -30,19 +30,17 @@ pub struct Declaration {
 
 impl Document {
     pub fn new(root_name: &str) -> Self {
-        let mut items = SlotMap::with_key();
+        let mut nodes = SlotMap::with_key();
         let parents = SparseSecondaryMap::new();
         let attrs = SparseSecondaryMap::new();
 
-        let root_key = Element(
-            items.insert(ItemValue::Node(NodeValue::Element(ElementValue {
-                name: root_name.into(),
-                children: vec![],
-            }))),
-        );
+        let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
+            name: root_name.into(),
+            children: vec![],
+        })));
 
         Self {
-            items,
+            nodes,
             parents,
             attrs,
             root_key,
@@ -78,7 +76,7 @@ impl Document {
 
         let mut decl: Option<Declaration> = None;
 
-        let mut items = SlotMap::with_key();
+        let mut nodes = SlotMap::with_key();
         let parents = SparseSecondaryMap::new();
         let attrs = SparseSecondaryMap::new();
 
@@ -88,10 +86,8 @@ impl Document {
         let mut doc = loop {
             match r.read_event(&mut buf) {
                 Ok(Event::DocType(d)) => {
-                    before.push(Node::DocumentType(DocumentType(items.insert(
-                        ItemValue::Node(NodeValue::DocumentType(
-                            d.unescape_and_decode(&r).unwrap(),
-                        )),
+                    before.push(Node::DocumentType(DocumentType(nodes.insert(
+                        NodeValue::DocumentType(d.unescape_and_decode(&r).unwrap()),
                     ))));
                 }
                 Ok(Event::Decl(d)) => {
@@ -117,15 +113,13 @@ impl Document {
                 Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
                     let name = std::str::from_utf8(e.name()).unwrap().to_string();
 
-                    let root_key = Element(items.insert(ItemValue::Node(NodeValue::Element(
-                        ElementValue {
-                            name,
-                            children: vec![],
-                        },
-                    ))));
+                    let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
+                        name,
+                        children: vec![],
+                    })));
 
                     let mut document = Document {
-                        items,
+                        nodes,
                         parents,
                         attrs,
                         root_key,
@@ -159,19 +153,19 @@ impl Document {
                     {
                         continue;
                     }
-                    before.push(Node::Text(Text(items.insert(ItemValue::Node(
-                        NodeValue::Text(e.unescape_and_decode(&r).unwrap()),
-                    )))));
+                    before.push(Node::Text(Text(
+                        nodes.insert(NodeValue::Text(e.unescape_and_decode(&r).unwrap())),
+                    )));
                 }
                 Ok(Event::Comment(e)) => {
-                    before.push(Node::Comment(Comment(items.insert(ItemValue::Node(
-                        NodeValue::Comment(e.unescape_and_decode(&r).unwrap()),
-                    )))));
+                    before.push(Node::Comment(Comment(
+                        nodes.insert(NodeValue::Comment(e.unescape_and_decode(&r).unwrap())),
+                    )));
                 }
                 Ok(Event::CData(e)) => {
-                    before.push(Node::CDataSection(CDataSection(items.insert(
-                        ItemValue::Node(NodeValue::CData(e.unescape_and_decode(&r).unwrap())),
-                    ))));
+                    before.push(Node::CDataSection(CDataSection(
+                        nodes.insert(NodeValue::CData(e.unescape_and_decode(&r).unwrap())),
+                    )));
                 }
                 Ok(x) => {
                     panic!("Uhh... {:?}", x);
@@ -226,7 +220,7 @@ impl Document {
                             }
                             None => {
                                 doc.after.push(Node::Text(Text(
-                                    doc.items.insert(ItemValue::Node(NodeValue::Text(text))),
+                                    doc.nodes.insert(NodeValue::Text(text)),
                                 )));
                             }
                         }
@@ -240,7 +234,7 @@ impl Document {
                         }
                         None => {
                             doc.after.push(Node::CDataSection(CDataSection(
-                                doc.items.insert(ItemValue::Node(NodeValue::CData(text))),
+                                doc.nodes.insert(NodeValue::CData(text)),
                             )));
                         }
                     }
@@ -253,7 +247,7 @@ impl Document {
                         }
                         None => {
                             doc.after.push(Node::Comment(Comment(
-                                doc.items.insert(ItemValue::Node(NodeValue::Comment(text))),
+                                doc.nodes.insert(NodeValue::Comment(text)),
                             )));
                         }
                     }
