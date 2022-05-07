@@ -1,9 +1,11 @@
 [package]
 name = "xmlem"
-version = "0.0.0"
+description = "XML DOM implementation with pretty printing"
+authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
+version = "0.1.0"
 edition = "2021"
-description = "mlem"
 license = "Apache-2.0 OR MIT"
+repository = "https://github.com/bbqsrc/xmlem"
 
 [dependencies]
 cssparser = "0.28.1"
