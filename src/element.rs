@@ -66,6 +66,38 @@ impl Element {
         Element(new_key)
     }
 
+    pub fn append_new_element_after(
+        self,
+        document: &mut Document,
+        new_element: impl Into<NewElement>,
+    ) -> Element {
+        let element = new_element.into();
+        let new_key = document.nodes.insert(NodeValue::Element(ElementValue {
+            name: element.name,
+            children: vec![],
+        }));
+        document.attrs.insert(new_key, element.attrs);
+        document.parents.insert(new_key, self);
+
+        let parent = self.parent(document).expect("no parent");
+        let children = &mut document
+            .nodes
+            .get_mut(parent.0)
+            .unwrap()
+            .as_element_mut()
+            .unwrap()
+            .children;
+
+        let index = children.iter().position(|x| x == &self.as_node()).unwrap() + 1;
+        if index >= children.len() {
+            children.push(Node::Element(Element(new_key)));
+        } else {
+            children.insert(index, Node::Element(Element(new_key)))
+        }
+
+        Element(new_key)
+    }
+
     pub fn append_text(self, document: &mut Document, text: &str) -> Text {
         let new_key = document.nodes.insert(NodeValue::Text(text.to_string()));
         document.parents.insert(new_key, self);

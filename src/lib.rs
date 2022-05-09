@@ -185,6 +185,25 @@ mod tests {
     }
 
     #[test]
+    fn after() {
+        let input = "<root><a/><b/><c/><d/></root>";
+        let mut doc = Document::from_str(input).unwrap();
+
+        let b = doc
+            .root()
+            .query_selector(&doc, &Selector::new("b").unwrap())
+            .unwrap();
+        b.append_new_element_after(&mut doc, ("potato", [("hihi", "oij")]));
+
+        let d = doc
+            .root()
+            .query_selector(&doc, &Selector::new("d").unwrap())
+            .unwrap();
+        d.append_new_element_after(&mut doc, ("potato", [("hihi", "oij")]));
+        println!("{:#}", doc);
+    }
+
+    #[test]
     fn svg() {
         let input = std::fs::read_to_string("/Users/brendan/Downloads/keyboard-iso.svg").unwrap();
         let mut doc = Document::from_str(&input).unwrap();
