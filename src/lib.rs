@@ -260,4 +260,14 @@ mod tests {
 
         println!("{:#}", doc);
     }
+
+    #[test]
+    fn set_text() {
+        let input = "<root><a/></root>";
+        let mut doc = Document::from_str(input).unwrap();
+
+        doc.root().set_text(&mut doc, "potato");
+
+        println!("{:#}", doc);
+    }
 }

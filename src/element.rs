@@ -140,6 +140,17 @@ impl Element {
         Comment(new_key)
     }
 
+    pub fn set_text(self, document: &mut Document, text: &str) {
+        let new_key = document.nodes.insert(NodeValue::Text(text.to_string()));
+        document
+            .nodes
+            .get_mut(self.0)
+            .unwrap()
+            .as_element_mut()
+            .unwrap()
+            .children = vec![Node::Text(Text(new_key))];
+    }
+
     pub fn remove_child(self, document: &mut Document, node: Node) {
         let element = document
             .nodes
