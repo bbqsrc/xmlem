@@ -5,12 +5,12 @@ use std::{
 };
 
 use indexmap::IndexMap;
+use qname::QName;
 use unic_ucd::GeneralCategory;
 
 use crate::{
     document::{Declaration, Document},
     key::DocKey,
-    qname::QName,
     value::{ElementValue, NodeValue},
 };
 
@@ -169,10 +169,10 @@ fn fmt_attrs(
     context: &State,
     attrs: &IndexMap<QName, String>,
 ) -> io::Result<()> {
-    let line_length = tag.prefixed_name.len()
+    let line_length = tag.prefixed_name().len()
         + 2
         + attrs.iter().fold(0usize, |acc, (k, v)| {
-            acc + k.prefixed_name.len() + v.len() + 4
+            acc + k.prefixed_name().len() + v.len() + 4
         });
 
     let is_newlines = config.is_pretty && line_length > config.max_line_length;

@@ -1,4 +1,6 @@
-use crate::{key::Node, qname::QName};
+use qname::QName;
+
+use crate::key::Node;
 
 #[derive(Debug, Clone)]
 pub(crate) enum NodeValue {

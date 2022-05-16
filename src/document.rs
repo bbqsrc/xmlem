@@ -1,13 +1,13 @@
 use std::io::BufRead;
 
 use indexmap::IndexMap;
+use qname::QName;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
 use crate::{
     display::{self, Config, Print, State},
     element::Element,
     key::{CDataSection, Comment, DocKey, DocumentType, Text},
-    qname::QName,
     value::{ElementValue, NodeValue},
     Node,
 };
@@ -260,7 +260,9 @@ impl Document {
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(name.prefixed_name));
+                            return Err(quick_xml::Error::UnexpectedToken(
+                                name.prefixed_name().to_string(),
+                            ));
                         }
                     };
                     let mut attrs = IndexMap::new();
@@ -280,7 +282,9 @@ impl Document {
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(name.prefixed_name));
+                            return Err(quick_xml::Error::UnexpectedToken(
+                                name.prefixed_name().to_string(),
+                            ));
                         }
                     };
                     let mut attrs = IndexMap::new();

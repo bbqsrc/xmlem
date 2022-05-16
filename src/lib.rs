@@ -2,19 +2,19 @@ pub mod display;
 mod document;
 mod element;
 mod key;
-mod qname;
 mod select;
 mod value;
 
 pub use document::{Declaration, Document};
 pub use element::{Element, NewElement};
 pub use key::Node;
-pub use qname::QName;
 pub use select::Selector;
 
 #[cfg(test)]
 mod tests {
     use std::str::FromStr;
+
+    use qname::qname;
 
     use crate::select::Selector;
 
@@ -31,20 +31,20 @@ mod tests {
         let new_el = doc.root().append_new_element(
             &mut doc,
             NewElement {
-                name: "child".parse().unwrap(),
+                name: qname!("child"),
                 attrs: Default::default(),
             },
         );
         new_el.append_new_element(
             &mut doc,
             NewElement {
-                name: "child2".parse().unwrap(),
+                name: qname!("child2"),
                 attrs: Default::default(),
             },
         );
         let mut attrs = IndexMap::new();
-        attrs.insert("hello".parse().unwrap(), "yes".into());
-        attrs.insert("another-thing".parse().unwrap(), "yes".into());
+        attrs.insert(qname!("hello"), "yes".into());
+        attrs.insert(qname!("another-thing"), "yes".into());
 
         let foo = new_el.append_new_element(
             &mut doc,

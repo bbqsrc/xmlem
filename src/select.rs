@@ -1,6 +1,7 @@
 use std::borrow::Borrow;
 
 use cssparser::{CowRcStr, ParseError, SourceLocation};
+use qname::QName;
 use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstraint};
 use selectors::context::QuirksMode;
 use selectors::parser::{
@@ -9,7 +10,6 @@ use selectors::parser::{
 use selectors::parser::{PseudoElement, SelectorParseErrorKind};
 use selectors::{self, matching, OpaqueElement};
 
-use crate::qname::QName;
 use crate::{Document, Element};
 
 #[derive(Debug, Clone)]

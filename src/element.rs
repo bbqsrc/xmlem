@@ -1,11 +1,11 @@
 use indexmap::IndexMap;
 use once_cell::sync::Lazy;
+use qname::QName;
 
 use crate::{
     display::{self, Print},
     document::Document,
     key::{CDataSection, Comment, DocKey, Node, Text},
-    qname::QName,
     select::Selector,
     value::{ElementValue, NodeValue},
 };
@@ -187,12 +187,12 @@ impl Element {
 
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        &element.name.prefixed_name
+        &element.name.prefixed_name()
     }
 
     pub fn prefix<'d>(&self, document: &'d Document) -> Option<&'d str> {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        element.name.namespace.as_deref()
+        element.name.namespace()
     }
 
     pub fn attributes<'d>(&self, document: &'d Document) -> &'d IndexMap<QName, String> {
