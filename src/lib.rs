@@ -294,4 +294,14 @@ mod tests {
         inner.append_element(&mut doc, a);
         println!("{:#}", doc);
     }
+
+    #[test]
+    fn selector() {
+        let input =
+            r#"<strings><string name="english_ime_name">Giella Keyboard</string></strings>"#;
+        let mut doc = Document::from_str(input).unwrap();
+
+        let sel = Selector::new(r#"string[name="english_ime_name"]"#).unwrap();
+        let el = doc.root().query_selector(&doc, &sel).unwrap();
+    }
 }
