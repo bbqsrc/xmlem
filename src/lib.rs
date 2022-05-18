@@ -270,4 +270,28 @@ mod tests {
 
         println!("{:#}", doc);
     }
+
+    #[test]
+    fn double_use() {
+        let input = "<root><a/></root>";
+        let mut doc = Document::from_str(input).unwrap();
+
+        let a = doc
+            .root()
+            .query_selector(&doc, &Selector::new("a").unwrap())
+            .unwrap();
+        doc.root().remove_child(&mut doc, Node::Element(a));
+        assert_eq!(a.parent(&doc), None);
+
+        let inner = doc.root().append_new_element(
+            &mut doc,
+            NewElement {
+                name: qname!("test"),
+                attrs: Default::default(),
+            },
+        );
+
+        inner.append_element(&mut doc, a);
+        println!("{:#}", doc);
+    }
 }

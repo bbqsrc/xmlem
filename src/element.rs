@@ -43,6 +43,22 @@ impl Element {
         Node::from(*self)
     }
 
+    pub fn append_element(self, document: &mut Document, element: Element) {
+        if let Some(parent) = element.parent(&document) {
+            parent.remove_child(document, Node::Element(element));
+        }
+
+        document.parents.insert(element.0, self);
+        document
+            .nodes
+            .get_mut(self.0)
+            .unwrap()
+            .as_element_mut()
+            .unwrap()
+            .children
+            .push(Node::Element(element));
+    }
+
     pub fn append_new_element(
         self,
         document: &mut Document,
@@ -164,7 +180,7 @@ impl Element {
             }
             None => return,
         }
-        document.nodes.remove(node.as_key());
+        document.parents.remove(node.as_key());
     }
 
     pub fn parent(self, document: &Document) -> Option<Element> {
