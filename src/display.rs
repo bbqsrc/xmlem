@@ -2,10 +2,12 @@ use std::{
     borrow::Cow,
     fmt::Display,
     io::{self, Write},
+    str,
 };
 
 use indexmap::IndexMap;
 use qname::QName;
+use quick_xml::escape::escape;
 use unic_ucd::GeneralCategory;
 
 use crate::{
@@ -309,7 +311,11 @@ impl Print<Config, State<'_>> for NodeValue {
             ),
             NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE {}>", t),
-            NodeValue::Comment(t) => write!(f, "<!--{}-->", t),
+            NodeValue::Comment(t) => write!(
+                f,
+                "<!--{}-->",
+                str::from_utf8(&escape(t.as_bytes())).expect("escaped xml is still valid utf-8")
+            ),
             NodeValue::Element(_) => unreachable!(),
         }?;
 
