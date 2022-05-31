@@ -204,6 +204,61 @@ mod tests {
     }
 
     #[test]
+    fn after2() {
+        let input = r#"<merge xmlns:latin="http://schemas.android.com/apk/res-auto">
+            <include latin:keyboardLayout="@xml/key_styles_common" />
+            <include latin:keyboardLayout="@xml/row_qwerty4" />
+        </merge>"#;
+        let mut doc = Document::from_str(input).unwrap();
+
+        let include_selector = Selector::new("include").expect("this selector is fine");
+        let rows_include = doc
+            .root()
+            .query_selector(&mut doc, &include_selector)
+            .expect("there should be an include");
+
+        let row_append = rows_include.append_new_element_after(
+            &mut doc,
+            NewElement {
+                name: qname!("Row"),
+                attrs: [].into(),
+            },
+        );
+
+        row_append.append_new_element(
+            &mut doc,
+            NewElement {
+                name: qname!("include"),
+                attrs: [
+                    (qname!("latin:keyboardLayout"), format!("@xml/potato",)),
+                    (qname!("latin:keyWidth"), "8.18%p".to_owned()),
+                ]
+                .into(),
+            },
+        );
+        let row_append = row_append.append_new_element_after(
+            &mut doc,
+            NewElement {
+                name: qname!("Row"),
+                attrs: [].into(),
+            },
+        );
+
+        row_append.append_new_element(
+            &mut doc,
+            NewElement {
+                name: qname!("include"),
+                attrs: [
+                    (qname!("latin:keyboardLayout"), format!("@xml/potato",)),
+                    (qname!("latin:keyWidth"), "8.18%p".to_owned()),
+                ]
+                .into(),
+            },
+        );
+        println!("{:#}", doc);
+    }
+
+    #[test]
     fn svg() {
         let input = std::fs::read_to_string("/Users/brendan/Downloads/keyboard-iso.svg").unwrap();
         let mut doc = Document::from_str(&input).unwrap();

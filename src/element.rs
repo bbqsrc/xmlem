@@ -93,9 +93,10 @@ impl Element {
             children: vec![],
         }));
         document.attrs.insert(new_key, element.attrs);
-        document.parents.insert(new_key, self);
 
         let parent = self.parent(document).expect("no parent");
+        document.parents.insert(new_key, parent);
+
         let children = &mut document
             .nodes
             .get_mut(parent.0)
