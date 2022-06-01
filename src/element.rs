@@ -241,7 +241,7 @@ impl Element {
             .print(
                 &mut s,
                 &display::Config::default_pretty(),
-                &display::State::new(document),
+                &display::State::new(document, true),
             )
             .expect("Invalid string somehow");
         String::from_utf8(s).expect("Invalid UTF-8")

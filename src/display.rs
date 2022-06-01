@@ -14,6 +14,7 @@ use crate::{
     document::{Declaration, Document},
     key::DocKey,
     value::{ElementValue, NodeValue},
+    Node,
 };
 
 pub(crate) trait Print<Config, Context = ()> {
@@ -26,6 +27,7 @@ pub struct Config {
     pub indent: usize,
     pub max_line_length: usize,
     pub entity_mode: EntityMode,
+    pub indent_text_nodes: bool,
 }
 
 impl Config {
@@ -35,20 +37,23 @@ impl Config {
             indent: 2,
             max_line_length: 120,
             entity_mode: EntityMode::Standard,
+            indent_text_nodes: true,
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub(crate) struct State<'a> {
+    pub is_pretty: bool,
     pub indent: usize,
     pub key: DocKey,
     pub doc: &'a Document,
 }
 
 impl<'a> State<'a> {
-    pub(crate) fn new(document: &'a Document) -> Self {
+    pub(crate) fn new(document: &'a Document, is_pretty: bool) -> Self {
         Self {
+            is_pretty,
             indent: 0,
             doc: document,
             key: document.root_key.0,
@@ -61,7 +66,17 @@ impl<'a> State<'a> {
         }
 
         State {
+            is_pretty: self.is_pretty,
             indent: self.indent + config.indent,
+            key: self.key,
+            doc: self.doc,
+        }
+    }
+
+    fn without_pretty(&self) -> Self {
+        State {
+            is_pretty: false,
+            indent: 0,
             key: self.key,
             doc: self.doc,
         }
@@ -69,6 +84,7 @@ impl<'a> State<'a> {
 
     fn with_key(&self, key: DocKey) -> Self {
         State {
+            is_pretty: self.is_pretty,
             indent: self.indent,
             key,
             doc: self.doc,
@@ -81,25 +97,25 @@ impl Print<Config, State<'_>> for Declaration {
         &self,
         f: &mut dyn Write,
         config: &Config,
-        _context: &State<'_>,
+        context: &State<'_>,
     ) -> std::io::Result<()> {
-        write!(f, "<?xml ")?;
+        write!(f, "<?xml")?;
 
         if let Some(version) = self.version.as_deref() {
-            write!(f, "version=\"{}\" ", version)?;
+            write!(f, " version=\"{}\"", version)?;
         }
 
         if let Some(encoding) = self.encoding.as_deref() {
-            write!(f, "encoding=\"{}\" ", encoding)?;
+            write!(f, " encoding=\"{}\"", encoding)?;
         }
 
         if let Some(standalone) = self.standalone.as_deref() {
-            write!(f, "standalone=\"{}\" ", standalone)?;
+            write!(f, " standalone=\"{}\"", standalone)?;
         }
 
         write!(f, "?>")?;
 
-        if config.is_pretty {
+        if context.is_pretty {
             writeln!(f)?;
         }
 
@@ -125,8 +141,12 @@ impl Display for Document {
             config.max_line_length = precision;
         }
 
-        self.print(&mut FmtWriter(f), &config, &State::new(self))
-            .map_err(|_| std::fmt::Error)
+        self.print(
+            &mut FmtWriter(f),
+            &config,
+            &State::new(self, config.is_pretty),
+        )
+        .map_err(|_| std::fmt::Error)
     }
 }
 
@@ -177,21 +197,32 @@ fn fmt_attrs(
             acc + k.prefixed_name().len() + v.len() + 4
         });
 
-    let is_newlines = config.is_pretty && line_length > config.max_line_length;
+    let is_newlines = context.is_pretty && line_length > config.max_line_length;
     let context = context.with_indent(config);
 
     let mut iter = attrs.iter();
 
     if let Some((k, v)) = iter.next() {
+        write!(
+            f,
+            "{}=\"{}\"",
+            k,
+            process_entities(v, config.entity_mode, false, false)
+        )?;
+    }
+
+    if let Some((k, v)) = iter.next() {
         if is_newlines {
             writeln!(f)?;
             write!(f, "{:>indent$}", "", indent = context.indent)?;
+        } else {
+            write!(f, " ")?;
         }
         write!(
             f,
             "{}=\"{}\"",
             k,
-            process_entities(v, config.entity_mode, false)
+            process_entities(v, config.entity_mode, false, false)
         )?;
     } else {
         return Ok(());
@@ -208,7 +239,7 @@ fn fmt_attrs(
             f,
             "{}=\"{}\"",
             k,
-            process_entities(v, config.entity_mode, false)
+            process_entities(v, config.entity_mode, false, false)
         )?;
     }
 
@@ -228,7 +259,7 @@ impl Print<Config, State<'_>> for ElementValue {
                     write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
                     fmt_attrs(f, &self.name, config, context, attrs)?;
                     write!(f, " />")?;
-                    if config.is_pretty {
+                    if context.is_pretty {
                         writeln!(f)?;
                     }
                     return Ok(());
@@ -241,7 +272,7 @@ impl Print<Config, State<'_>> for ElementValue {
                         self.name,
                         indent = context.indent
                     )?;
-                    if config.is_pretty {
+                    if context.is_pretty {
                         writeln!(f)?;
                     }
                     return Ok(());
@@ -249,39 +280,56 @@ impl Print<Config, State<'_>> for ElementValue {
             }
         }
 
+        let has_text = self
+            .children
+            .iter()
+            .any(|x| matches!(x, Node::Text(_) | Node::CDataSection(_)));
+
         match context.doc.attrs.get(context.key) {
             Some(attrs) if !attrs.is_empty() => {
                 write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
                 fmt_attrs(f, &self.name, config, context, attrs)?;
                 write!(f, ">")?;
-                if config.is_pretty {
+                if (!config.indent_text_nodes && !has_text) && context.is_pretty {
                     writeln!(f)?;
                 }
             }
             _ => {
                 write!(f, "{:>indent$}<{}>", "", self.name, indent = context.indent)?;
-                if config.is_pretty {
+                if (!config.indent_text_nodes && !has_text) && context.is_pretty {
                     writeln!(f)?;
                 }
             }
         }
 
-        let child_context = context.with_indent(config);
+        let child_context = {
+            if has_text && !config.indent_text_nodes {
+                context.without_pretty()
+            } else {
+                context.with_indent(config)
+            }
+        };
 
         for child in self.children.iter() {
             let value = context.doc.nodes.get(child.as_key()).unwrap();
             value.print(f, config, &child_context.with_key(child.as_key()))?;
         }
-        write!(
-            f,
-            "{:>indent$}</{}>",
-            "",
-            self.name,
-            indent = context.indent
-        )?;
 
-        if config.is_pretty {
+        if (!config.indent_text_nodes && !has_text) && context.is_pretty {
+            write!(
+                f,
+                "{:>indent$}</{}>",
+                "",
+                self.name,
+                indent = context.indent
+            )?;
+
             writeln!(f)?;
+        } else {
+            write!(f, "</{}>", self.name)?;
+            if context.is_pretty {
+                writeln!(f)?;
+            }
         }
 
         Ok(())
@@ -299,27 +347,53 @@ impl Print<Config, State<'_>> for NodeValue {
             return e.print(f, config, context);
         }
 
-        if config.is_pretty {
+        if let NodeValue::Text(t) = self {
+            if config.indent_text_nodes && context.is_pretty {
+                write!(f, "{:>indent$}", "", indent = context.indent)?;
+            }
+
+            write!(
+                f,
+                "{}",
+                &*process_entities(t, config.entity_mode, true, true)
+            )?;
+
+            if config.indent_text_nodes && context.is_pretty {
+                writeln!(f)?;
+            }
+
+            return Ok(());
+        }
+
+        if let NodeValue::CData(t) = self {
+            if config.indent_text_nodes && context.is_pretty {
+                write!(f, "{:>indent$}", "", indent = context.indent)?;
+            }
+
+            write!(f, "<![CDATA[{t}]]>")?;
+
+            if config.indent_text_nodes && context.is_pretty {
+                writeln!(f)?;
+            }
+
+            return Ok(());
+        }
+
+        if context.is_pretty {
             write!(f, "{:>indent$}", "", indent = context.indent)?;
         }
 
         match self {
-            NodeValue::Text(t) => write!(
-                f,
-                "{}",
-                &*process_entities(t, config.entity_mode, true).trim()
-            ),
-            NodeValue::CData(t) => write!(f, "<![CDATA[{}]]>", t),
             NodeValue::DocumentType(t) => write!(f, "<!DOCTYPE {}>", t),
             NodeValue::Comment(t) => write!(
                 f,
                 "<!--{}-->",
-                str::from_utf8(&escape(t.as_bytes())).expect("escaped xml is still valid utf-8")
+                process_entities(t, config.entity_mode, true, true)
             ),
-            NodeValue::Element(_) => unreachable!(),
+            NodeValue::Element(_) | NodeValue::Text(_) | NodeValue::CData(_) => unreachable!(),
         }?;
 
-        if config.is_pretty {
+        if context.is_pretty {
             writeln!(f)?;
         }
 
@@ -339,7 +413,12 @@ impl Default for EntityMode {
     }
 }
 
-fn process_entities(input: &str, mode: EntityMode, allow_separators: bool) -> Cow<'_, str> {
+fn process_entities(
+    input: &str,
+    mode: EntityMode,
+    allow_separators: bool,
+    is_text: bool,
+) -> Cow<'_, str> {
     if input.chars().any(|ch| {
         if ['<', '>', '\'', '"', '&'].contains(&ch) || ch.is_ascii_control() {
             return true;
