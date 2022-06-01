@@ -430,8 +430,8 @@ fn process_entities(
         input.chars().for_each(|ch| {
             s.push_str(match (mode, ch) {
                 (EntityMode::Standard, '&') => "&amp;",
-                (EntityMode::Standard, '\'') => "&apos;",
-                (EntityMode::Standard, '"') => "&quot;",
+                (EntityMode::Standard, '\'') if !is_text => "&apos;",
+                (EntityMode::Standard, '"') if !is_text => "&quot;",
                 (EntityMode::Standard, '<') => "&lt;",
                 (EntityMode::Standard, '>') => "&gt;",
                 (EntityMode::Hex, '&' | '\'' | '"' | '<' | '>') => {
@@ -445,8 +445,10 @@ fn process_entities(
                 (_, other) => {
                     let cat = GeneralCategory::of(other);
 
-                    let is_ws =
-                        allow_separators && (other.is_ascii_whitespace() || cat.is_separator());
+                    let is_ws = ch != '\u{00a0}'
+                        && (ch == ' '
+                            || allow_separators
+                                && (other.is_ascii_whitespace() || cat.is_separator()));
                     let is_printable = !(cat.is_separator() || cat.is_other());
 
                     if is_ws || is_printable {
