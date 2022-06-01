@@ -7,7 +7,6 @@ use std::{
 
 use indexmap::IndexMap;
 use qname::QName;
-use quick_xml::escape::escape;
 use unic_ucd::GeneralCategory;
 
 use crate::{
@@ -96,7 +95,7 @@ impl Print<Config, State<'_>> for Declaration {
     fn print(
         &self,
         f: &mut dyn Write,
-        config: &Config,
+        _config: &Config,
         context: &State<'_>,
     ) -> std::io::Result<()> {
         write!(f, "<?xml")?;
