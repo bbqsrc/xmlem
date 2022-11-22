@@ -2,7 +2,7 @@
 name = "xmlem"
 description = "XML DOM implementation with pretty printing"
 authors = ["Brendan Molloy <brendan@bbqsrc.net>"]
-version = "0.1.8"
+version = "0.1.9"
 edition = "2021"
 license = "Apache-2.0 OR MIT"
 repository = "https://github.com/bbqsrc/xmlem"
@@ -18,4 +18,3 @@ selectors = "0.23.0"
 slotmap = "1.0.6"
 unic-ucd = "0.9.0"
 qname = "0.1.0"
-# url = "2.2.2"
