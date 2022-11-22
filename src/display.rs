@@ -255,7 +255,19 @@ impl Print<Config, State<'_>> for ElementValue {
         if self.children.is_empty() {
             match context.doc.attrs.get(context.key) {
                 Some(attrs) if !attrs.is_empty() => {
-                    write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
+                    write!(f, "{:>indent$}<{}", "", self.name, indent = context.indent)?;
+                    let line_length = &self.name.prefixed_name().len()
+                        + 2
+                        + attrs.iter().take(1).fold(0usize, |acc, (k, v)| {
+                            acc + k.prefixed_name().len() + v.len() + 4
+                        });
+                    let is_newlines = context.is_pretty && line_length > config.max_line_length;
+                    if is_newlines {
+                        writeln!(f)?;
+                        write!(f, "{:>indent$}", "", indent = context.indent + config.indent)?;
+                    } else {
+                        write!(f, " ")?;
+                    }
                     fmt_attrs(f, &self.name, config, context, attrs)?;
                     write!(f, " />")?;
                     if context.is_pretty {
@@ -286,7 +298,19 @@ impl Print<Config, State<'_>> for ElementValue {
 
         match context.doc.attrs.get(context.key) {
             Some(attrs) if !attrs.is_empty() => {
-                write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
+                write!(f, "{:>indent$}<{}", "", self.name, indent = context.indent)?;
+                let line_length = &self.name.prefixed_name().len()
+                    + 2
+                    + attrs.iter().take(1).fold(0usize, |acc, (k, v)| {
+                        acc + k.prefixed_name().len() + v.len() + 4
+                    });
+                let is_newlines = context.is_pretty && line_length > config.max_line_length;
+                if is_newlines {
+                    writeln!(f)?;
+                    write!(f, "{:>indent$}", "", indent = context.indent + config.indent)?;
+                } else {
+                    write!(f, " ")?;
+                }
                 fmt_attrs(f, &self.name, config, context, attrs)?;
                 write!(f, ">")?;
                 if (config.indent_text_nodes || !has_text) && context.is_pretty {
