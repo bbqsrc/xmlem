@@ -133,14 +133,6 @@ mod tests {
     }
 
     #[test]
-    fn keylayout() {
-        let input = include_str!("/Users/brendan/Library/Keyboard Layouts/so.brendan.keyboards.keyboardlayout.brendan.bundle/Contents/Resources/enusaltsv.keylayout");
-        let doc = Document::from_str(input).unwrap();
-
-        println!("{:#}", doc);
-    }
-
-    #[test]
     fn clone() {
         let input = r#"<俄语 լեզու="ռուսերեն">данные</俄语>"#;
         let doc = Document::from_str(input).unwrap();
@@ -255,64 +247,6 @@ mod tests {
                 .into(),
             },
         );
-        println!("{:#}", doc);
-    }
-
-    #[test]
-    fn svg() {
-        let input = std::fs::read_to_string("/Users/brendan/Downloads/keyboard-iso.svg").unwrap();
-        let mut doc = Document::from_str(&input).unwrap();
-
-        let nodes = doc.root().children(&doc);
-        let g = nodes.last().unwrap();
-        let nodes = g.children(&doc).to_vec();
-        for element in nodes {
-            let children = element.children(&doc).to_vec();
-            for el in children {
-                let g = el.append_new_element(&mut doc, ("g", [("class", "key-group")]));
-
-                let primary = g.append_new_element(
-                    &mut doc,
-                    (
-                        "text",
-                        [
-                            ("dy", "1em"),
-                            ("y", "32"),
-                            ("x", "32"),
-                            ("class", "key-text-primary"),
-                        ],
-                    ),
-                );
-
-                primary.append_text(&mut doc, "lol");
-
-                let secondary = g.append_new_element(
-                    &mut doc,
-                    NewElement {
-                        name: "text".parse().unwrap(),
-                        attrs: [
-                            ("dy".parse().unwrap(), "-.4em".to_string()),
-                            ("class".parse().unwrap(), "key-text-secondary".to_string()),
-                        ]
-                        .into(),
-                    },
-                );
-
-                secondary.append_text(&mut doc, "LOL");
-            }
-        }
-
-        let sel = Selector::new("g").unwrap();
-
-        println!(
-            "{:?}",
-            doc.root()
-                .query_selector(&doc, &sel)
-                .unwrap()
-                .attributes(&doc)
-        );
-        println!("Count: {}", doc.root().query_selector_all(&doc, &sel).len());
-
         println!("{:#}", doc);
     }
 
