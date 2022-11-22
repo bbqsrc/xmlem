@@ -164,9 +164,7 @@ impl Document {
             match r.read_event_into(&mut buf) {
                 Ok(Event::DocType(d)) => {
                     before.push(Node::DocumentType(DocumentType(nodes.insert(
-                        NodeValue::DocumentType(
-                            d.unescape().unwrap().trim().to_string(),
-                        ),
+                        NodeValue::DocumentType(d.unescape().unwrap().trim().to_string()),
                     ))));
                 }
                 Ok(Event::Decl(d)) => {
