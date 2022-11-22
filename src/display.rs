@@ -157,7 +157,7 @@ impl Print<Config, State<'_>> for Document {
         context: &State<'_>,
     ) -> std::io::Result<()> {
         if let Some(decl) = self.decl.as_ref() {
-            Print::print(decl, f, &config, &context)?;
+            Print::print(decl, f, config, context)?;
         }
 
         for node in self.before.iter() {

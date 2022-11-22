@@ -133,8 +133,7 @@ impl Document {
     #[inline]
     pub fn to_string_pretty_with_config(&self, config: &display::Config) -> String {
         let mut s = vec![];
-        self.print(&mut s, &config, &State::new(self, true))
-            .unwrap();
+        self.print(&mut s, config, &State::new(self, true)).unwrap();
         String::from_utf8(s).expect("invalid UTF-8")
     }
 
