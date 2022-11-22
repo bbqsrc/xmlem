@@ -161,11 +161,11 @@ impl Document {
         let mut element_stack = vec![];
 
         let mut doc = loop {
-            match r.read_event(&mut buf) {
+            match r.read_event_into(&mut buf) {
                 Ok(Event::DocType(d)) => {
                     before.push(Node::DocumentType(DocumentType(nodes.insert(
                         NodeValue::DocumentType(
-                            d.unescape_and_decode(&r).unwrap().trim().to_string(),
+                            d.unescape().unwrap().trim().to_string(),
                         ),
                     ))));
                 }
@@ -190,7 +190,10 @@ impl Document {
                     });
                 }
                 Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
-                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
+                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                        .unwrap()
+                        .parse()
+                        .unwrap();
 
                     let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
                         name,
@@ -214,8 +217,8 @@ impl Document {
                     }
 
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_and_decode_value(&r).unwrap();
-                        let s = std::str::from_utf8(attr.key)?;
+                        let value = attr.unescape_value().unwrap();
+                        let s = std::str::from_utf8(attr.key.local_name().into_inner())?;
 
                         root.set_attribute(&mut document, s, &value);
                     }
@@ -226,24 +229,23 @@ impl Document {
                     if e.len() == 0 {
                         continue;
                     }
-                    if e.unescape_and_decode(&r)
-                        .map(|x| x.trim().is_empty())
-                        .unwrap_or(false)
-                    {
+                    if e.unescape().map(|x| x.trim().is_empty()).unwrap_or(false) {
                         continue;
                     }
                     before.push(Node::Text(Text(
-                        nodes.insert(NodeValue::Text(e.unescape_and_decode(&r).unwrap())),
+                        nodes.insert(NodeValue::Text(e.unescape().unwrap().to_string())),
                     )));
                 }
                 Ok(Event::Comment(e)) => {
                     before.push(Node::Comment(Comment(
-                        nodes.insert(NodeValue::Comment(e.unescape_and_decode(&r).unwrap())),
+                        nodes.insert(NodeValue::Comment(e.unescape().unwrap().to_string())),
                     )));
                 }
                 Ok(Event::CData(e)) => {
+                    let e_inner = e.into_inner();
+                    let text = std::str::from_utf8(e_inner.as_ref())?;
                     before.push(Node::CDataSection(CDataSection(
-                        nodes.insert(NodeValue::CData(e.unescape_and_decode(&r).unwrap())),
+                        nodes.insert(NodeValue::CData(text.to_owned())),
                     )));
                 }
                 Ok(x) => {
@@ -254,9 +256,12 @@ impl Document {
         };
 
         loop {
-            match r.read_event(&mut buf) {
+            match r.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
+                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                        .unwrap()
+                        .parse()
+                        .unwrap();
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
@@ -267,9 +272,12 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_and_decode_value(&r)?;
+                        let value = attr.unescape_value()?.to_string();
                         attrs.insert(
-                            std::str::from_utf8(attr.key).unwrap().parse().unwrap(),
+                            std::str::from_utf8(attr.key.local_name().into_inner())
+                                .unwrap()
+                                .parse()
+                                .unwrap(),
                             value,
                         );
                     }
@@ -278,7 +286,10 @@ impl Document {
                     element_stack.push(element);
                 }
                 Ok(Event::Empty(e)) => {
-                    let name: QName = std::str::from_utf8(e.name()).unwrap().parse().unwrap();
+                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                        .unwrap()
+                        .parse()
+                        .unwrap();
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
@@ -289,9 +300,12 @@ impl Document {
                     };
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_and_decode_value(&r)?;
+                        let value = attr.unescape_value()?.to_string();
                         attrs.insert(
-                            std::str::from_utf8(attr.key).unwrap().parse().unwrap(),
+                            std::str::from_utf8(attr.key.local_name().into_inner())
+                                .unwrap()
+                                .parse()
+                                .unwrap(),
                             value,
                         );
                     }
@@ -301,7 +315,7 @@ impl Document {
                     element_stack.pop();
                 }
                 Ok(Event::Text(e)) => {
-                    let text = e.unescape_and_decode(&r)?;
+                    let text = e.unescape()?;
                     if !text.trim().is_empty() {
                         match element_stack.last() {
                             Some(el) => {
@@ -309,34 +323,35 @@ impl Document {
                             }
                             None => {
                                 doc.after.push(Node::Text(Text(
-                                    doc.nodes.insert(NodeValue::Text(text)),
+                                    doc.nodes.insert(NodeValue::Text(text.to_string())),
                                 )));
                             }
                         }
                     }
                 }
                 Ok(Event::CData(cdata)) => {
-                    let text = cdata.unescape_and_decode(&r)?;
+                    let cdata_inner = cdata.into_inner();
+                    let text = std::str::from_utf8(cdata_inner.as_ref())?;
                     match element_stack.last() {
                         Some(el) => {
-                            el.append_cdata(&mut doc, &text);
+                            el.append_cdata(&mut doc, text);
                         }
                         None => {
                             doc.after.push(Node::CDataSection(CDataSection(
-                                doc.nodes.insert(NodeValue::CData(text)),
+                                doc.nodes.insert(NodeValue::CData(text.to_owned())),
                             )));
                         }
                     }
                 }
                 Ok(Event::Comment(comment)) => {
-                    let text = comment.unescape_and_decode(&r)?;
+                    let text = comment.unescape()?;
                     match element_stack.last() {
                         Some(el) => {
                             el.append_comment(&mut doc, &text);
                         }
                         None => {
                             doc.after.push(Node::Comment(Comment(
-                                doc.nodes.insert(NodeValue::Comment(text)),
+                                doc.nodes.insert(NodeValue::Comment(text.to_string())),
                             )));
                         }
                     }
