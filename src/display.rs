@@ -24,6 +24,7 @@ pub(crate) trait Print<Config, Context = ()> {
 pub struct Config {
     pub is_pretty: bool,
     pub indent: usize,
+    pub end_pad: usize,
     pub max_line_length: usize,
     pub entity_mode: EntityMode,
     pub indent_text_nodes: bool,
@@ -34,6 +35,7 @@ impl Config {
         Config {
             is_pretty: true,
             indent: 2,
+            end_pad: 1,
             max_line_length: 120,
             entity_mode: EntityMode::Standard,
             indent_text_nodes: true,
@@ -269,7 +271,7 @@ impl Print<Config, State<'_>> for ElementValue {
                         write!(f, " ")?;
                     }
                     fmt_attrs(f, &self.name, config, context, attrs)?;
-                    write!(f, " />")?;
+                    write!(f, "{:>end_pad$}/>", "", end_pad = config.end_pad)?;
                     if context.is_pretty {
                         writeln!(f)?;
                     }
@@ -278,10 +280,12 @@ impl Print<Config, State<'_>> for ElementValue {
                 _ => {
                     write!(
                         f,
-                        "{:>indent$}<{} />",
+                        "{:>indent$}<{}{:>end_pad$}/>",
+                        "",
                         "",
                         self.name,
-                        indent = context.indent
+                        indent = context.indent,
+                        end_pad = config.end_pad
                     )?;
                     if context.is_pretty {
                         writeln!(f)?;
