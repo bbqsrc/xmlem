@@ -44,7 +44,7 @@ impl Element {
     }
 
     pub fn append_element(self, document: &mut Document, element: Element) {
-        if let Some(parent) = element.parent(&document) {
+        if let Some(parent) = element.parent(document) {
             parent.remove_child(document, Node::Element(element));
         }
 
@@ -204,7 +204,7 @@ impl Element {
 
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        &element.name.prefixed_name()
+        element.name.prefixed_name()
     }
 
     pub fn prefix<'d>(&self, document: &'d Document) -> Option<&'d str> {
@@ -312,7 +312,7 @@ fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item =
 
     let mut last_child: Option<Box<dyn Iterator<Item = Element>>> = None;
 
-    Box::new(std::iter::from_fn(move || loop {
+    Box::new(std::iter::from_fn(move || {
         if let Some(iter) = last_child.as_mut() {
             if let Some(next) = iter.next() {
                 return Some(next);
@@ -329,7 +329,7 @@ fn walk_tree<'a>(doc: &'a Document, element: Element) -> Box<dyn Iterator<Item =
         index += 1;
 
         last_child = Some(Box::new(walk_tree(doc, child)));
-        return Some(child);
+        Some(child)
     }))
 }
 
