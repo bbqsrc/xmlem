@@ -289,13 +289,13 @@ impl Print<Config, State<'_>> for ElementValue {
                 write!(f, "{:>indent$}<{} ", "", self.name, indent = context.indent)?;
                 fmt_attrs(f, &self.name, config, context, attrs)?;
                 write!(f, ">")?;
-                if (!config.indent_text_nodes && !has_text) && context.is_pretty {
+                if (config.indent_text_nodes || !has_text) && context.is_pretty {
                     writeln!(f)?;
                 }
             }
             _ => {
                 write!(f, "{:>indent$}<{}>", "", self.name, indent = context.indent)?;
-                if (!config.indent_text_nodes && !has_text) && context.is_pretty {
+                if (config.indent_text_nodes || !has_text) && context.is_pretty {
                     writeln!(f)?;
                 }
             }
@@ -314,7 +314,7 @@ impl Print<Config, State<'_>> for ElementValue {
             value.print(f, config, &child_context.with_key(child.as_key()))?;
         }
 
-        if (!config.indent_text_nodes && !has_text) && context.is_pretty {
+        if (config.indent_text_nodes || !has_text) && context.is_pretty {
             write!(
                 f,
                 "{:>indent$}</{}>",
