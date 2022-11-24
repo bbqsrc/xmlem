@@ -222,7 +222,7 @@ mod tests {
             NewElement {
                 name: qname!("include"),
                 attrs: [
-                    (qname!("latin:keyboardLayout"), format!("@xml/potato",)),
+                    (qname!("latin:keyboardLayout"), "@xml/potato".to_string()),
                     (qname!("latin:keyWidth"), "8.18%p".to_owned()),
                 ]
                 .into(),
@@ -241,7 +241,7 @@ mod tests {
             NewElement {
                 name: qname!("include"),
                 attrs: [
-                    (qname!("latin:keyboardLayout"), format!("@xml/potato",)),
+                    (qname!("latin:keyboardLayout"), "@xml/potato".to_string()),
                     (qname!("latin:keyWidth"), "8.18%p".to_owned()),
                 ]
                 .into(),
