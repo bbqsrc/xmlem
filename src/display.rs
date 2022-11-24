@@ -266,7 +266,12 @@ impl Print<Config, State<'_>> for ElementValue {
                     let is_newlines = context.is_pretty && line_length > config.max_line_length;
                     if is_newlines {
                         writeln!(f)?;
-                        write!(f, "{:>indent$}", "", indent = context.indent + config.indent)?;
+                        write!(
+                            f,
+                            "{:>indent$}",
+                            "",
+                            indent = context.indent + config.indent
+                        )?;
                     } else {
                         write!(f, " ")?;
                     }
@@ -280,8 +285,7 @@ impl Print<Config, State<'_>> for ElementValue {
                 _ => {
                     write!(
                         f,
-                        "{:>indent$}<{}{:>end_pad$}/>",
-                        "",
+                        "{:>indent$}<{:>end_pad$}/>",
                         "",
                         self.name,
                         indent = context.indent,
@@ -311,7 +315,12 @@ impl Print<Config, State<'_>> for ElementValue {
                 let is_newlines = context.is_pretty && line_length > config.max_line_length;
                 if is_newlines {
                     writeln!(f)?;
-                    write!(f, "{:>indent$}", "", indent = context.indent + config.indent)?;
+                    write!(
+                        f,
+                        "{:>indent$}",
+                        "",
+                        indent = context.indent + config.indent
+                    )?;
                 } else {
                     write!(f, " ")?;
                 }
