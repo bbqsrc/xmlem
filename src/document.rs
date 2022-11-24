@@ -1,6 +1,10 @@
-use std::io::BufRead;
+use std::{
+    cmp::{min, Ordering},
+    io::BufRead,
+};
 
 use indexmap::IndexMap;
+use once_cell::sync::Lazy;
 use qname::QName;
 use slotmap::{SlotMap, SparseSecondaryMap};
 
@@ -11,6 +15,8 @@ use crate::{
     value::{ElementValue, NodeValue},
     Node,
 };
+
+static ATTR_ID: Lazy<QName> = Lazy::new(|| QName::new("id").unwrap());
 
 #[derive(Debug, Clone)]
 pub struct Document {
@@ -48,6 +54,90 @@ impl Declaration {
     }
 }
 
+pub struct ElementAndContext<'a> {
+    pre: Vec<&'a Node>,
+    elem: &'a Node,
+    attrs: &'a IndexMap<QName, String>,
+    elem_val: &'a ElementValue,
+}
+
+pub fn node2ordinal(node: &Node) -> u8 {
+    match node {
+        Node::Element(_) => 0,
+        Node::Text(_) => 2,
+        Node::CDataSection(_) => 3,
+        Node::ProcessingInstruction(_) => 4,
+        Node::Comment(_) => 2,
+        Node::DocumentType(_) => 5,
+    }
+}
+
+#[allow(clippy::ptr_arg)]
+pub fn ord_q_name(qn1: &QName, _v1: &String, qn2: &QName, _v2: &String) -> Ordering {
+    qn1.cmp(qn2)
+}
+
+pub fn ord_node(n1: &&Node, n2: &&Node) -> Ordering {
+    let n1_ordinal = node2ordinal(n1);
+    let n2_ordinal = node2ordinal(n2);
+    n1_ordinal.cmp(&n2_ordinal)
+}
+
+pub fn ord_elem(ec1: &ElementAndContext, ec2: &ElementAndContext) -> Ordering {
+    let e1 = ec1.elem_val;
+    let e2 = ec2.elem_val;
+
+    // 1. Order by element name
+    let name_ord = e1.name.cmp(&e2.name);
+    if !matches!(name_ord, Ordering::Equal) {
+        return name_ord;
+    }
+
+    // 2. Order by the 'id' attributes value, if both elements contain it
+    if let Some(e1_id) = ec1.attrs.get::<QName>(&ATTR_ID) {
+        if let Some(e2_id) = ec2.attrs.get::<QName>(&ATTR_ID) {
+            let id_ord = e1_id.cmp(e2_id);
+            if !matches!(id_ord, Ordering::Equal) {
+                return id_ord;
+            }
+        }
+    }
+
+    // 3. Order by name of all the attributes of the two elements
+    // NOTE We assume/require attributes to already be sorted by name!
+    let mut e1_attrs_names = ec1.attrs.keys();
+    let mut e2_attrs_names = ec2.attrs.keys();
+    let min_len = min(ec1.attrs.len(), ec2.attrs.len());
+    for _ai in 0..min_len {
+        let e1_ak = e1_attrs_names.next();
+        let e2_ak = e2_attrs_names.next();
+        let attrs_ord = e1_ak.cmp(&e2_ak);
+        if !matches!(attrs_ord, Ordering::Equal) {
+            return attrs_ord;
+        }
+    }
+
+    // 4. Order by number of attributes
+    let num_attrs_ord = ec1.attrs.len().cmp(&ec2.attrs.len());
+    if num_attrs_ord.is_ne() {
+        return num_attrs_ord;
+    }
+
+    // 5. Order by values of attributes
+    let mut e1_attrs_values = ec1.attrs.values();
+    let mut e2_attrs_values = ec2.attrs.values();
+    for _ai in 0..min_len {
+        let e1_av = e1_attrs_values.next();
+        let e2_av = e2_attrs_values.next();
+        let attrs_ord = e1_av.cmp(&e2_av);
+        if !matches!(attrs_ord, Ordering::Equal) {
+            return attrs_ord;
+        }
+    }
+
+    Ordering::Equal
+}
+
 impl Document {
     pub fn new(root_name: &str) -> Self {
         let mut nodes = SlotMap::with_key();
@@ -67,6 +157,88 @@ impl Document {
             before: vec![],
             after: vec![],
             decl: None,
+        }
+    }
+
+    fn sort_nodes(&self, nodes_orig: &Vec<Node>) -> Vec<Node> {
+        if nodes_orig.len() < 2 {
+            return nodes_orig.clone();
+        }
+
+        let nodes = nodes_orig.clone();
+
+        let mut pre = vec![];
+        let mut elems = vec![];
+        let mut has_text = false;
+        let mut post = vec![];
+        for node in &nodes {
+            match node {
+                Node::Element(elem) => {
+                    elems.push(ElementAndContext {
+                        pre: pre.clone(),
+                        elem: node,
+                        attrs: self.attrs.get(elem.0).unwrap(),
+                        elem_val: self.nodes.get(elem.0).unwrap().as_element().unwrap(),
+                    });
+                }
+                Node::Text(_) => {
+                    has_text = true;
+                    post.push(node);
+                }
+                Node::CDataSection(_) => pre.push(node),
+                Node::ProcessingInstruction(_) => post.push(node),
+                Node::Comment(_) => pre.push(node),
+                Node::DocumentType(_) => {
+                    panic!("DocumentType found inside an element; that should never be the case")
+                }
+            }
+        }
+        if has_text && !elems.is_empty() {
+            println!(
+                "Element contains both element(s) and text; \
+            we thus consider all elements to be inline-elements \
+            (think of the *bold* element in HTML), and thus we will not sort them."
+            );
+            return nodes_orig.clone();
+        }
+
+        elems.sort_by(ord_elem);
+        post.sort_by(ord_node);
+
+        let mut nodes_sorted = vec![];
+        for mut elem_cont in elems {
+            elem_cont.pre.sort_by(ord_node);
+            for p in elem_cont.pre {
+                nodes_sorted.push(*p);
+            }
+            nodes_sorted.push(*elem_cont.elem);
+        }
+        for p in post {
+            nodes_sorted.push(*p);
+        }
+        nodes_sorted
+    }
+
+    fn sort_node_value(&self, node_value: &NodeValue) -> NodeValue {
+        let mut new_node_value = node_value.clone();
+        if let NodeValue::Element(ref mut e) = new_node_value {
+            e.children = self.sort_nodes(&e.children);
+        }
+        new_node_value
+    }
+
+    fn sort_attrs(&mut self) {
+        for el_attrs in self.attrs.values_mut() {
+            el_attrs.sort_by(ord_q_name);
+        }
+    }
+
+    pub fn sort(&mut self, elements: bool) {
+        self.sort_attrs();
+        if elements {
+            self.before = self.sort_nodes(&self.before);
+            self.nodes[self.root_key.0] = self.sort_node_value(&self.nodes[self.root_key.0]);
+            self.after = self.sort_nodes(&self.after);
         }
     }
 
