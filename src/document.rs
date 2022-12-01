@@ -61,26 +61,8 @@ pub struct ElementAndContext<'a> {
     elem_val: &'a ElementValue,
 }
 
-pub fn node2ordinal(node: &Node) -> u8 {
-    match node {
-        Node::Element(_) => 0,
-        Node::Text(_) => 2,
-        Node::CDataSection(_) => 3,
-        Node::ProcessingInstruction(_) => 4,
-        Node::Comment(_) => 2,
-        Node::DocumentType(_) => 5,
-    }
-}
-
-#[allow(clippy::ptr_arg)]
-pub fn ord_q_name(qn1: &QName, _v1: &String, qn2: &QName, _v2: &String) -> Ordering {
-    qn1.cmp(qn2)
-}
-
 pub fn ord_node(n1: &&Node, n2: &&Node) -> Ordering {
-    let n1_ordinal = node2ordinal(n1);
-    let n2_ordinal = node2ordinal(n2);
-    n1_ordinal.cmp(&n2_ordinal)
+    n1.to_ordinal().cmp(&n2.to_ordinal())
 }
 
 pub fn ord_elem(ec1: &ElementAndContext, ec2: &ElementAndContext) -> Ordering {
@@ -229,7 +211,7 @@ impl Document {
 
     fn sort_attrs(&mut self) {
         for el_attrs in self.attrs.values_mut() {
-            el_attrs.sort_by(ord_q_name);
+            el_attrs.sort_by(|qn1: &QName, _v1: &String, qn2: &QName, _v2: &String| qn1.cmp(qn2));
         }
     }
 
