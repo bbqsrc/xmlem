@@ -84,4 +84,15 @@ impl Node {
             _ => None,
         }
     }
+
+    pub fn to_ordinal(&self) -> u8 {
+        match self {
+            Node::Element(_) => 0,
+            Node::Text(_) => 2,
+            Node::CDataSection(_) => 3,
+            Node::ProcessingInstruction(_) => 4,
+            Node::Comment(_) => 2,
+            Node::DocumentType(_) => 5,
+        }
+    }
 }
