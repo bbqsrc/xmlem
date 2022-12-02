@@ -15,6 +15,7 @@ use crate::{
     value::{ElementValue, NodeValue},
     Node,
 };
+use tracing::debug;
 
 static ATTR_ID: Lazy<QName> = Lazy::new(|| QName::new("id").unwrap());
 
@@ -176,7 +177,7 @@ impl Document {
             }
         }
         if has_text && !elems.is_empty() {
-            println!(
+            debug!(
                 "Element contains both element(s) and text; \
             we thus consider all elements to be inline-elements \
             (think of the *bold* element in HTML), and thus we will not sort them."
