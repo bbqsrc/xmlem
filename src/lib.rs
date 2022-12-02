@@ -100,8 +100,8 @@ mod tests {
     #[test]
     fn smoke2() {
         let doc = Document::from_str(
-        r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
-    ).unwrap();
+            r#"<root xmlns:x="http://lol" someattr="true">lol <x:sparta/><sparta derp="9000"></sparta> </root>"#,
+        ).unwrap();
         println!("{}", doc);
     }
 
