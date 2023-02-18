@@ -234,6 +234,15 @@ impl Element {
         attrs.insert(name.parse().unwrap(), value.into());
     }
 
+    pub fn remove_attribute(&self, document: &mut Document, name: &str) {
+        if !document.attrs.contains_key(self.0) {
+            return;
+        }
+
+        let attrs = document.attrs.get_mut(self.0).unwrap();
+        attrs.shift_remove(&name.parse::<QName>().unwrap());
+    }
+
     pub fn display(&self, document: &Document) -> String {
         let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
         let mut s = Vec::<u8>::new();
