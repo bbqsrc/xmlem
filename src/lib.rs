@@ -1,7 +1,7 @@
 pub mod display;
 mod document;
 mod element;
-mod key;
+pub mod key;
 mod select;
 mod value;
 

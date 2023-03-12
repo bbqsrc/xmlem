@@ -18,6 +18,16 @@ pub struct ElementValue {
 }
 
 impl NodeValue {
+    pub fn as_str(&self) -> Option<&str> {
+        match self {
+            NodeValue::Text(x)
+            | NodeValue::CData(x)
+            | NodeValue::Comment(x)
+            | NodeValue::DocumentType(x) => Some(&*x),
+            NodeValue::Element(_) => None,
+        }
+    }
+
     pub fn as_element(&self) -> Option<&ElementValue> {
         match self {
             NodeValue::Element(e) => Some(e),

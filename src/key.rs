@@ -1,6 +1,6 @@
 use slotmap::new_key_type;
 
-use crate::element::Element;
+use crate::{element::Element, Document};
 
 new_key_type! {
     pub(crate) struct DocKey;
@@ -9,14 +9,42 @@ new_key_type! {
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Text(pub(crate) DocKey);
 
+impl Text {
+    pub fn as_str<'d>(&self, doc: &'d Document) -> &'d str {
+        let node_value = &doc.nodes[self.0];
+        node_value.as_str().unwrap()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct CDataSection(pub(crate) DocKey);
+
+impl CDataSection {
+    pub fn as_str<'d>(&self, doc: &'d Document) -> &'d str {
+        let node_value = &doc.nodes[self.0];
+        node_value.as_str().unwrap()
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct ProcessingInstruction(pub(crate) DocKey);
 
+impl ProcessingInstruction {
+    pub fn as_str<'d>(&self, doc: &'d Document) -> &'d str {
+        let node_value = &doc.nodes[self.0];
+        node_value.as_str().unwrap()
+    }
+}
+
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct Comment(pub(crate) DocKey);
+
+impl Comment {
+    pub fn as_str<'d>(&self, doc: &'d Document) -> &'d str {
+        let node_value = &doc.nodes[self.0];
+        node_value.as_str().unwrap()
+    }
+}
 
 #[derive(Debug, PartialEq, Eq, Copy, Clone)]
 pub struct DocumentType(pub(crate) DocKey);
