@@ -1,6 +1,9 @@
 use std::{
     cmp::{min, Ordering},
+    error::Error,
+    fmt,
     io::BufRead,
+    str::Utf8Error,
 };
 
 use indexmap::IndexMap;
@@ -293,13 +296,13 @@ impl Document {
     }
 
     #[inline]
-    pub fn from_file(file: std::fs::File) -> Result<Document, quick_xml::Error> {
+    pub fn from_file(file: std::fs::File) -> Result<Document, ReadError> {
         let reader = std::io::BufReader::new(file);
         Self::from_reader(reader)
     }
 
     #[inline]
-    pub fn from_reader<R: BufRead>(reader: R) -> Result<Document, quick_xml::Error> {
+    pub fn from_reader<R: BufRead>(reader: R) -> Result<Document, ReadError> {
         use quick_xml::events::Event;
         use quick_xml::Reader;
 
@@ -404,7 +407,7 @@ impl Document {
                 Ok(x) => {
                     panic!("Uhh... {:?}", x);
                 }
-                Err(e) => return Err(e),
+                Err(e) => return Err(e.into()),
             }
         };
 
@@ -418,7 +421,7 @@ impl Document {
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(
+                            return Err(ReadError::SupplementaryElement(
                                 name.prefixed_name().to_string(),
                             ));
                         }
@@ -446,7 +449,7 @@ impl Document {
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
-                            return Err(quick_xml::Error::UnexpectedToken(
+                            return Err(ReadError::SupplementaryElement(
                                 name.prefixed_name().to_string(),
                             ));
                         }
@@ -523,7 +526,7 @@ impl Document {
                     break;
                 }
                 Err(e) => {
-                    return Err(e);
+                    return Err(e.into());
                 }
             }
         }
@@ -533,9 +536,49 @@ impl Document {
 }
 
 impl std::str::FromStr for Document {
-    type Err = quick_xml::Error;
+    type Err = ReadError;
 
-    fn from_str(s: &str) -> Result<Document, quick_xml::Error> {
+    fn from_str(s: &str) -> Result<Document, ReadError> {
         Self::from_reader(std::io::Cursor::new(s))
+    }
+}
+
+#[derive(Debug)]
+#[non_exhaustive]
+pub enum ReadError {
+    Parse(quick_xml::Error),
+    SupplementaryElement(String),
+}
+
+impl fmt::Display for ReadError {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        match self {
+            ReadError::Parse(err) => fmt::Display::fmt(err, f),
+            ReadError::SupplementaryElement(name) => {
+                write!(f, "Supplementary element after root: {name}")
+            }
+        }
+    }
+}
+
+impl Error for ReadError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        if let Self::Parse(err) = self {
+            err.source()
+        } else {
+            None
+        }
+    }
+}
+
+impl From<quick_xml::Error> for ReadError {
+    fn from(err: quick_xml::Error) -> Self {
+        Self::Parse(err)
+    }
+}
+
+impl From<Utf8Error> for ReadError {
+    fn from(err: Utf8Error) -> Self {
+        Self::Parse(err.into())
     }
 }
