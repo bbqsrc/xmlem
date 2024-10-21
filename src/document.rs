@@ -343,7 +343,7 @@ impl Document {
                     });
                 }
                 Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
-                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                    let name: QName = std::str::from_utf8(e.name().into_inner())
                         .unwrap()
                         .parse()
                         .unwrap();
@@ -371,7 +371,7 @@ impl Document {
 
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_value().unwrap();
-                        let s = std::str::from_utf8(attr.key.local_name().into_inner())?;
+                        let s = std::str::from_utf8(attr.key.into_inner())?;
 
                         root.set_attribute(&mut document, s, &value);
                     }
@@ -411,7 +411,7 @@ impl Document {
         loop {
             match r.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                    let name: QName = std::str::from_utf8(e.name().into_inner())
                         .unwrap()
                         .parse()
                         .unwrap();
@@ -427,7 +427,7 @@ impl Document {
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_value()?.to_string();
                         attrs.insert(
-                            std::str::from_utf8(attr.key.local_name().into_inner())
+                            std::str::from_utf8(attr.key.into_inner())
                                 .unwrap()
                                 .parse()
                                 .unwrap(),
@@ -439,7 +439,7 @@ impl Document {
                     element_stack.push(element);
                 }
                 Ok(Event::Empty(e)) => {
-                    let name: QName = std::str::from_utf8(e.name().local_name().into_inner())
+                    let name: QName = std::str::from_utf8(e.name().into_inner())
                         .unwrap()
                         .parse()
                         .unwrap();
@@ -455,7 +455,7 @@ impl Document {
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_value()?.to_string();
                         attrs.insert(
-                            std::str::from_utf8(attr.key.local_name().into_inner())
+                            std::str::from_utf8(attr.key.into_inner())
                                 .unwrap()
                                 .parse()
                                 .unwrap(),
