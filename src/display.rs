@@ -385,17 +385,23 @@ impl Print<Config, State<'_>> for NodeValue {
 
         if let NodeValue::Text(t) = self {
             if config.indent_text_nodes && context.is_pretty {
-                write!(f, "{:>indent$}", "", indent = context.indent)?;
-            }
-
-            write!(
-                f,
-                "{}",
-                &*process_entities(t, config.entity_mode, true, true)
-            )?;
-
-            if config.indent_text_nodes && context.is_pretty {
-                writeln!(f)?;
+                writeln!(
+                    f,
+                    "{:>indent$}{content}",
+                    "",
+                    indent = context.indent,
+                    // If `indent_text_nodes`+`is_pretty` is set, surrounding whitespace can be
+                    // assumed to be non-significant. In order to avoid producing ever-increasing
+                    // surrounding space in read-write loops, trim the existing whitespace to
+                    // replace it with our own.
+                    content = &*process_entities(t.trim(), config.entity_mode, true, true)
+                )?;
+            } else {
+                write!(
+                    f,
+                    "{}",
+                    &*process_entities(t, config.entity_mode, true, true)
+                )?;
             }
 
             return Ok(());
