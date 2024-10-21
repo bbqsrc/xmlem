@@ -329,4 +329,13 @@ mod tests {
         assert_eq!(q_elem.qname(&doc).local_part(), "elem");
         assert_eq!(q_elem.name(&doc), "x:elem");
     }
+
+    #[test]
+    fn test_document_trailing_whitespace() {
+        let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
+        assert_eq!(
+            doc.to_string_pretty(),
+            "<text>\n  \n    Actual Output\n    \n</text>\n"
+        );
+    }
 }
