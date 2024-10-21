@@ -293,4 +293,40 @@ mod tests {
         let sel = Selector::new(r#"string[name="english_ime_name"]"#).unwrap();
         let _el = doc.root().query_selector(&doc, &sel).unwrap();
     }
+
+    #[test]
+    fn non_root_empty_element_name() {
+        let input = r#"<root><elem/><x:elem/></root>"#;
+        let doc = Document::from_str(input).unwrap();
+
+        let nq_elem = doc.root().children(&doc)[0];
+        assert_eq!(nq_elem.qname(&doc).namespace(), None);
+        assert_eq!(nq_elem.prefix(&doc), None);
+        assert_eq!(nq_elem.qname(&doc).local_part(), "elem");
+        assert_eq!(nq_elem.name(&doc), "elem");
+
+        let q_elem = doc.root().children(&doc)[1];
+        assert_eq!(q_elem.qname(&doc).namespace(), Some("x"));
+        assert_eq!(q_elem.prefix(&doc), Some("x"));
+        assert_eq!(q_elem.qname(&doc).local_part(), "elem");
+        assert_eq!(q_elem.name(&doc), "x:elem");
+    }
+
+    #[test]
+    fn non_root_non_empty_element_name() {
+        let input = r#"<root><elem></elem><x:elem></x:elem></root>"#;
+        let doc = Document::from_str(input).unwrap();
+
+        let nq_elem = doc.root().children(&doc)[0];
+        assert_eq!(nq_elem.qname(&doc).namespace(), None);
+        assert_eq!(nq_elem.prefix(&doc), None);
+        assert_eq!(nq_elem.qname(&doc).local_part(), "elem");
+        assert_eq!(nq_elem.name(&doc), "elem");
+
+        let q_elem = doc.root().children(&doc)[1];
+        assert_eq!(q_elem.qname(&doc).namespace(), Some("x"));
+        assert_eq!(q_elem.prefix(&doc), Some("x"));
+        assert_eq!(q_elem.qname(&doc).local_part(), "elem");
+        assert_eq!(q_elem.name(&doc), "x:elem");
+    }
 }

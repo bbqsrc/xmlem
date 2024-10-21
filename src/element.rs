@@ -202,16 +202,64 @@ impl Element {
             .collect()
     }
 
+    /// Get the qualified name of this element, already parsed.
+    ///
+    /// ```
+    /// let doc = r#"<root/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().qname(&doc).namespace(), None);
+    /// assert_eq!(doc.root().qname(&doc).local_part(), "root");
+    /// ```
+    ///
+    /// ```
+    /// let doc = r#"<x:root xmlns:x="http://example.com"/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().qname(&doc).namespace(), Some("x"));
+    /// assert_eq!(doc.root().qname(&doc).local_part(), "root");
+    /// ```
+    pub fn qname<'d>(&self, document: &'d Document) -> &'d QName {
+        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
+        &element.name
+    }
+
+    /// Get the unparsed qualified name of this element.
+    ///
+    /// ```
+    /// let doc = r#"<root/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().name(&doc), "root");
+    /// ```
+    ///
+    /// ```
+    /// let doc = r#"<x:root xmlns:x="http://example.com"/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().name(&doc), "x:root");
+    /// ```
     pub fn name<'d>(&self, document: &'d Document) -> &'d str {
-        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        element.name.prefixed_name()
+        self.qname(document).prefixed_name()
     }
 
+    /// Get the prefix of this element’s name.
+    ///
+    /// ```
+    /// let doc = r#"<root/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().prefix(&doc), None);
+    /// ```
+    ///
+    /// ```
+    /// let doc = r#"<x:root xmlns:x="http://example.com"/>"#.parse::<xmlem::Document>().unwrap();
+    /// assert_eq!(doc.root().prefix(&doc), Some("x"));
+    /// ```
     pub fn prefix<'d>(&self, document: &'d Document) -> Option<&'d str> {
-        let element = document.nodes.get(self.0).unwrap().as_element().unwrap();
-        element.name.namespace()
+        self.qname(document).namespace()
     }
 
+    /// List of attributes on this element, in order.
+    ///
+    /// ```
+    /// # use qname::qname;
+    /// let doc =r#"<root a:b="c" d="e"/>"#.parse::<xmlem::Document>().unwrap();
+    /// let mut attrs = doc.root().attributes(&doc).iter();
+    /// assert_eq!(attrs.next(), Some((&qname!("a:b"), &"c".to_owned())));
+    /// assert_eq!(attrs.next(), Some((&qname!("d"), &"e".to_owned())));
+    /// assert_eq!(attrs.next(), None);
+    /// ```
     pub fn attributes<'d>(&self, document: &'d Document) -> &'d IndexMap<QName, String> {
         match document.attrs.get(self.0) {
             Some(x) => x,
