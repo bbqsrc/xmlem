@@ -3,12 +3,13 @@ use std::borrow::Borrow;
 use cssparser::{CowRcStr, ParseError, SourceLocation};
 use qname::QName;
 use selectors::attr::{AttrSelectorOperation, CaseSensitivity, NamespaceConstraint};
-use selectors::context::QuirksMode;
+use selectors::context::{IgnoreNthChildForInvalidation, NeedsSelectorFlags, QuirksMode};
 use selectors::parser::{
-    NonTSPseudoClass, Parser, Selector as GenericSelector, SelectorImpl, SelectorList,
+    NonTSPseudoClass, ParseRelative, Parser, Selector as GenericSelector, SelectorImpl,
+    SelectorList,
 };
 use selectors::parser::{PseudoElement, SelectorParseErrorKind};
-use selectors::{self, matching, OpaqueElement};
+use selectors::{self, matching, NthIndexCache, OpaqueElement};
 
 use crate::{Document, Element};
 
@@ -62,7 +63,7 @@ impl PseudoElement for Value {
 }
 
 impl SelectorImpl for Selectors {
-    type ExtraMatchingData = ();
+    type ExtraMatchingData<'a> = ();
     type AttrValue = Value;
     type Identifier = Value;
     type LocalName = Value;
@@ -163,15 +164,11 @@ impl selectors::Element for ElementRef<'_> {
         }
     }
 
-    fn match_non_ts_pseudo_class<F>(
+    fn match_non_ts_pseudo_class(
         &self,
         _pc: &<Self::Impl as SelectorImpl>::NonTSPseudoClass,
         _context: &mut selectors::context::MatchingContext<Self::Impl>,
-        _flags_setter: &mut F,
-    ) -> bool
-    where
-        F: FnMut(&Self, matching::ElementSelectorFlags),
-    {
+    ) -> bool {
         false
     }
 
@@ -233,6 +230,19 @@ impl selectors::Element for ElementRef<'_> {
     fn is_root(&self) -> bool {
         self.document.root() == self.element
     }
+
+    fn first_element_child(&self) -> Option<Self> {
+        self.element
+            .children(&self.document)
+            .into_iter()
+            .next()
+            .map(|child| Self {
+                element: child,
+                document: self.document,
+            })
+    }
+
+    fn apply_selector_flags(&self, _flags: matching::ElementSelectorFlags) {}
 }
 
 struct TheParser;
@@ -263,7 +273,11 @@ pub struct Selector(Vec<SelectorInner>);
 impl Selector {
     pub fn new(s: &str) -> Result<Selector, ParseError<SelectorParseErrorKind>> {
         let mut input = cssparser::ParserInput::new(s);
-        match SelectorList::parse(&TheParser, &mut cssparser::Parser::new(&mut input)) {
+        match SelectorList::parse(
+            &TheParser,
+            &mut cssparser::Parser::new(&mut input),
+            ParseRelative::No,
+        ) {
             Ok(list) => Ok(Selector(list.0.into_iter().map(SelectorInner).collect())),
             Err(e) => Err(e),
         }
@@ -272,11 +286,14 @@ impl Selector {
     /// Returns whether the given element matches this selector.
     #[inline]
     pub fn matches(&self, document: &Document, element: Element) -> bool {
+        let mut cache = NthIndexCache::default();
         let mut context = matching::MatchingContext::new(
             matching::MatchingMode::Normal,
             None,
-            None,
+            &mut cache,
             QuirksMode::NoQuirks,
+            NeedsSelectorFlags::No,
+            IgnoreNthChildForInvalidation::No,
         );
         self.0.iter().any(|s| {
             matching::matches_selector(
@@ -285,7 +302,6 @@ impl Selector {
                 None,
                 &ElementRef { document, element },
                 &mut context,
-                &mut |_, _| {},
             )
         })
     }
