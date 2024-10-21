@@ -331,11 +331,15 @@ mod tests {
     }
 
     #[test]
-    fn test_document_trailing_whitespace() {
+    fn pretty_minimizes_whitespace() {
         let doc = Document::from_str("<text>\n    Actual Output\n    </text>").unwrap();
-        assert_eq!(
-            doc.to_string_pretty(),
-            "<text>\n  \n    Actual Output\n    \n</text>\n"
-        );
+        assert_eq!(doc.to_string_pretty(), "<text>\n  Actual Output\n</text>\n");
+    }
+
+    #[test]
+    fn non_pretty_preserves_whitespace() {
+        const EXACT_XML: &str = "<text>\t  \n Actual \n \t Output   \t\n  </text>";
+        let doc = Document::from_str(EXACT_XML).unwrap();
+        assert_eq!(doc.to_string(), EXACT_XML);
     }
 }
