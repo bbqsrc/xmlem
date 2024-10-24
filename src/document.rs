@@ -404,6 +404,9 @@ impl Document {
                         nodes.insert(NodeValue::CData(text.to_owned())),
                     )));
                 }
+                Ok(Event::PI(_)) => {
+                    continue;
+                }
                 Ok(x) => {
                     panic!("Uhh... {:?}", x);
                 }

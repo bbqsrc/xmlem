@@ -342,4 +342,10 @@ mod tests {
         let doc = Document::from_str(EXACT_XML).unwrap();
         assert_eq!(doc.to_string(), EXACT_XML);
     }
+
+    #[test]
+    fn accepts_pi_before_root() {
+        Document::from_str(r#"<?xml-stylesheet href="style.css" type="text/css"?><root/>"#)
+            .unwrap();
+    }
 }
