@@ -348,4 +348,10 @@ mod tests {
         Document::from_str(r#"<?xml-stylesheet href="style.css" type="text/css"?><root/>"#)
             .unwrap();
     }
+
+    #[test]
+    fn invalid_errors() {
+        Document::from_str(r#""#).unwrap_err();
+        Document::from_str(r#"</root>"#).unwrap_err();
+    }
 }
