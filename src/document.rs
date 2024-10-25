@@ -407,8 +407,8 @@ impl Document {
                 Ok(Event::PI(_)) => {
                     continue;
                 }
-                Ok(x) => {
-                    panic!("Uhh... {:?}", x);
+                Ok(other @ (Event::Eof | Event::End(_))) => {
+                    return Err(ReadError::Unexpected(format!("{other:?}")))
                 }
                 Err(e) => return Err(e.into()),
             }
@@ -551,6 +551,7 @@ impl std::str::FromStr for Document {
 pub enum ReadError {
     Parse(quick_xml::Error),
     SupplementaryElement(String),
+    Unexpected(String),
 }
 
 impl fmt::Display for ReadError {
@@ -559,6 +560,9 @@ impl fmt::Display for ReadError {
             ReadError::Parse(err) => fmt::Display::fmt(err, f),
             ReadError::SupplementaryElement(name) => {
                 write!(f, "Supplementary element after root: {name}")
+            }
+            ReadError::Unexpected(description) => {
+                write!(f, "Unexpected: {description}")
             }
         }
     }
