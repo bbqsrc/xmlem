@@ -321,21 +321,21 @@ impl Document {
         let mut doc = loop {
             match r.read_event_into(&mut buf) {
                 Ok(Event::DocType(d)) => {
-                    before.push(Node::DocumentType(DocumentType(nodes.insert(
-                        NodeValue::DocumentType(d.unescape().unwrap().trim().to_string()),
-                    ))));
+                    before.push(Node::DocumentType(DocumentType(
+                        nodes.insert(NodeValue::DocumentType(d.unescape()?.trim().to_string())),
+                    )));
                 }
                 Ok(Event::Decl(d)) => {
                     let version = d
                         .version()
-                        .map(|x| std::str::from_utf8(&x).unwrap().to_string())
-                        .ok();
+                        .ok()
+                        .and_then(|x| std::str::from_utf8(&x).ok().map(ToString::to_string));
                     let standalone = d.standalone().and_then(|x| match x {
-                        Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
+                        Ok(x) => std::str::from_utf8(&x).ok().map(ToString::to_string),
                         Err(_) => None,
                     });
                     let encoding = d.encoding().and_then(|x| match x {
-                        Ok(x) => Some(std::str::from_utf8(&x).unwrap().to_string()),
+                        Ok(x) => std::str::from_utf8(&x).ok().map(ToString::to_string),
                         Err(_) => None,
                     });
 
@@ -346,10 +346,7 @@ impl Document {
                     });
                 }
                 Ok(ref x @ (Event::Start(ref e) | Event::Empty(ref e))) => {
-                    let name: QName = std::str::from_utf8(e.name().into_inner())
-                        .unwrap()
-                        .parse()
-                        .unwrap();
+                    let name: QName = std::str::from_utf8(e.name().into_inner())?.parse()?;
 
                     let root_key = Element(nodes.insert(NodeValue::Element(ElementValue {
                         name,
@@ -373,7 +370,7 @@ impl Document {
                     }
 
                     for attr in e.attributes().filter_map(Result::ok) {
-                        let value = attr.unescape_value().unwrap();
+                        let value = attr.unescape_value()?;
                         let s = std::str::from_utf8(attr.key.into_inner())?;
 
                         root.set_attribute(&mut document, s, &value);
@@ -389,12 +386,12 @@ impl Document {
                         continue;
                     }
                     before.push(Node::Text(Text(
-                        nodes.insert(NodeValue::Text(e.unescape().unwrap().to_string())),
+                        nodes.insert(NodeValue::Text(e.unescape()?.to_string())),
                     )));
                 }
                 Ok(Event::Comment(e)) => {
                     before.push(Node::Comment(Comment(
-                        nodes.insert(NodeValue::Comment(e.unescape().unwrap().to_string())),
+                        nodes.insert(NodeValue::Comment(e.unescape()?.to_string())),
                     )));
                 }
                 Ok(Event::CData(e)) => {
@@ -417,10 +414,7 @@ impl Document {
         loop {
             match r.read_event_into(&mut buf) {
                 Ok(Event::Start(e)) => {
-                    let name: QName = std::str::from_utf8(e.name().into_inner())
-                        .unwrap()
-                        .parse()
-                        .unwrap();
+                    let name: QName = std::str::from_utf8(e.name().into_inner())?.parse()?;
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
@@ -432,23 +426,14 @@ impl Document {
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_value()?.to_string();
-                        attrs.insert(
-                            std::str::from_utf8(attr.key.into_inner())
-                                .unwrap()
-                                .parse()
-                                .unwrap(),
-                            value,
-                        );
+                        attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     let element =
                         parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
                     element_stack.push(element);
                 }
                 Ok(Event::Empty(e)) => {
-                    let name: QName = std::str::from_utf8(e.name().into_inner())
-                        .unwrap()
-                        .parse()
-                        .unwrap();
+                    let name: QName = std::str::from_utf8(e.name().into_inner())?.parse()?;
                     let parent = match element_stack.last() {
                         Some(v) => v,
                         None => {
@@ -460,13 +445,7 @@ impl Document {
                     let mut attrs = IndexMap::new();
                     for attr in e.attributes().filter_map(Result::ok) {
                         let value = attr.unescape_value()?.to_string();
-                        attrs.insert(
-                            std::str::from_utf8(attr.key.into_inner())
-                                .unwrap()
-                                .parse()
-                                .unwrap(),
-                            value,
-                        );
+                        attrs.insert(std::str::from_utf8(attr.key.into_inner())?.parse()?, value);
                     }
                     parent.append_new_element(&mut doc, crate::NewElement { name, attrs });
                 }
@@ -552,12 +531,14 @@ pub enum ReadError {
     Parse(quick_xml::Error),
     SupplementaryElement(String),
     Unexpected(String),
+    Name(qname::Error),
 }
 
 impl fmt::Display for ReadError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             ReadError::Parse(err) => fmt::Display::fmt(err, f),
+            ReadError::Name(err) => fmt::Display::fmt(err, f),
             ReadError::SupplementaryElement(name) => {
                 write!(f, "Supplementary element after root: {name}")
             }
@@ -587,5 +568,11 @@ impl From<quick_xml::Error> for ReadError {
 impl From<Utf8Error> for ReadError {
     fn from(err: Utf8Error) -> Self {
         Self::Parse(err.into())
+    }
+}
+
+impl From<qname::Error> for ReadError {
+    fn from(err: qname::Error) -> Self {
+        Self::Name(err)
     }
 }

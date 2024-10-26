@@ -349,9 +349,42 @@ mod tests {
             .unwrap();
     }
 
+    fn parse_buffer(buf: &[u8]) -> Result<Document, ReadError> {
+        Document::from_reader(std::io::Cursor::new(buf))
+    }
+
     #[test]
-    fn invalid_errors() {
-        Document::from_str(r#""#).unwrap_err();
-        Document::from_str(r#"</root>"#).unwrap_err();
+    fn ignored_invalids() {
+        parse_buffer(b"<?xml version=\"\xA1\"?><root/>").unwrap();
+        parse_buffer(b"<?xml other?><root/>").unwrap();
+        parse_buffer(b"<?xml version=\"1.1\" standalone=\"\xA1\"?><root/>").unwrap();
+        parse_buffer(b"<?xml version=\"1.1\" encoding=\"\xA1\"?><root/>").unwrap();
+    }
+
+    #[test]
+    fn erroring_invalids() {
+        parse_buffer(b"").unwrap_err();
+        parse_buffer(b"</root>").unwrap_err();
+        parse_buffer(b"<!DOCTYPE a=\"&\"><root/>").unwrap_err();
+        parse_buffer(b"<!DOCTYPE \xA1><root/>").unwrap_err();
+        parse_buffer(b"&").unwrap_err();
+        parse_buffer(b"<!-- & -->").unwrap_err();
+        parse_buffer(b"<\xA1/>").unwrap_err();
+        parse_buffer(b"<\x00/>").unwrap_err();
+        parse_buffer(b"<root a=\"&\"/>").unwrap_err();
+        parse_buffer(b"<root a=\"\xA1\"/>").unwrap_err();
+        parse_buffer(b"<root \xA1=\"\"/>").unwrap_err();
+        parse_buffer(b"<root><\xA1/></root>").unwrap_err();
+        parse_buffer(b"<root><\x00/></root>").unwrap_err();
+        parse_buffer(b"<root><elem a=\"\xA1\"/></root>").unwrap_err();
+        parse_buffer(b"<root><elem a=\"&\"/></root>").unwrap_err();
+        parse_buffer(b"<root><elem \xA1=\"\"/></root>").unwrap_err();
+        parse_buffer(b"<root><elem \x00=\"\"/></root>").unwrap_err();
+        parse_buffer(b"<root><\xA1></\xA1></root>").unwrap_err();
+        parse_buffer(b"<root><\x00></\x00></root>").unwrap_err();
+        parse_buffer(b"<root><elem a=\"\xA1\"></elem></root>").unwrap_err();
+        parse_buffer(b"<root><elem a=\"&\"></elem></root>").unwrap_err();
+        parse_buffer(b"<root><elem \xA1=\"\"></elem></root>").unwrap_err();
+        parse_buffer(b"<root><elem \x00=\"\"></elem></root>").unwrap_err();
     }
 }
